@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main  # Change this to your default branch if necessary
+      - main  
 
 jobs:
   deploy:
@@ -19,10 +19,10 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v1
         with:
-          dotnet-version: '9.0.x'  # Specify your .NET version here
+          dotnet-version: '9.0.x' 
 
       - name: Restore dependencies
-        run: dotnet restore ./MetricsApi/MetricsApi.csproj  # Adjust the path to your .csproj file
+        run: dotnet restore ./MetricsApi/MetricsApi.csproj  
 
       - name: Build the project
         run: dotnet build ./MetricsApi/MetricsApi.csproj --configuration Release --no-restore
@@ -31,7 +31,7 @@ jobs:
         run: dotnet publish ./MetricsApi/MetricsApi.csproj --configuration Release --output ./publish  # Output to a publish folder
 
       - name: Create ZIP file
-        run: zip -r ./publish/package.zip ./publish/*  # Create a ZIP file from the published output
+        run: cd ./publish; zip -r ../package.zip .; cd .. 
 
       - name: Login to Azure using OIDC
         uses: azure/login@v2
@@ -42,4 +42,4 @@ jobs:
 
       - name: Deploy to Azure Web App
         run: |
-          az webapp deploy --name ${{ vars.AZURE_WEBAPP_NAME }} --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} --src-path ./publish/package.zip --type zip
+          az webapp deploy --name ${{ vars.AZURE_WEBAPP_NAME }} --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} --src-path ./package.zip --type zip

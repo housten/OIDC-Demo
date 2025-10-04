@@ -35,3 +35,7 @@ az group create --name $resourceGroup --location $location
 az appservice plan create --name $appServicePlan --resource-group $resourceGroup --sku B1
 az webapp create --name $webAppName --resource-group $resourceGroup --plan $appServicePlan --runtime "dotnet:9"
 ```
+
+## GitHub Actions
+- `.github/workflows/deploy_webapp.yml` — Builds and deploys the API to Azure App Service using workload identity federation.
+- `.github/workflows/api_smoke_test.yml` — Requests an Azure AD token via workload identity and performs a protected POST/GET smoke test against the deployed API, uploading request/response artifacts for review.

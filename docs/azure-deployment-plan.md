@@ -69,6 +69,18 @@ Ensure the Azure AD API app registration has:
 - Exposed scopes (e.g., default scope or `Metrics.Submit`).
 - The Web App URL added as a redirect URI if you use Swagger Authorization Code flow locally.
 - The Swagger/client app granted delegated permission to the API scope.
+- Create federated credentials for GitHub Actions if using OIDC.
+```
+az ad app federated-credential create --id <APP_CLIENT_ID> --parameters '{
+  "name": "github-main-deploy",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "subject": "repo:housten/OIDC-Demo:ref:refs/heads/main",
+  "audiences": ["api://AzureADTokenExchange"]
+}'
+```
+## 4. Role assignment (if using OIDC)
+$spId=<APP_OBJECT_ID or APP_CLIENT_ID>
+az role assignment create --assignee $spId --role "WebSite Contributor" --scope /subscriptions/<sub-id>/resourceGroups/rg-metrics-OIDC-demo
 
 ## 5. Deployment artifact
 
@@ -87,3 +99,19 @@ Artifact details:
 - Submit a sample test result and verify summary endpoint data.
 - Monitor App Service logs (`az webapp log tail`) for errors.
 - Optionally enable Application Insights for richer telemetry.
+
+## 7. GitHub Actions API smoke test workflow
+
+The repository includes `.github/workflows/api_smoke_test.yml`, which runs a workload-identity authenticated smoke test against the deployed API. Complete the following setup before running it:
+
+1. **Create or reuse a client application registration** with delegated access to the Metrics API scope. Add a GitHub federated credential (issuer `https://token.actions.githubusercontent.com`) scoped to `repo:housten/OIDC-Demo:ref:refs/heads/main`. Store the app's client ID in the repository secret `API_CLIENT_APP_ID`.
+2. **Configure repository variables**: set `API_BASE_URL` to the deployed API root (e.g., `https://metricsapi-OIDC-demo-app.azurewebsites.net`) and `API_SCOPE` to the exposed audience (typically `api://<api-app-client-id>/.default`).
+3. **Reuse the existing tenant secret** `AZURE_TENANT_ID` that already supports the deployment workflow.
+
+When invoked (manually via *Run workflow*), the job:
+
+- Exchanges the GitHub OIDC token for an Azure AD access token scoped to the API.
+- Sends `POST /api/tests/result` with a sample payload that records contextual metadata.
+- Calls `GET /api/tests/summary`, surfaces the JSON response in the workflow run summary, and uploads all request/response bodies as an artifact (`api-smoke-test`).
+
+Review the uploaded artifacts to validate the API response. The workflow only touches the in-memory store; run `POST /api/tests/clear` afterwards if you want to reset the metrics.

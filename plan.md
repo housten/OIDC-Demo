@@ -46,18 +46,19 @@ Step 5 – Azure deployment approach
 - [x] Identify deployment artifact (dotnet publish zip vs. container) and paths.
 
 Step 6 – GitHub Actions deployment workflow
-- [ ] Decide on authentication method (OIDC federated credentials vs. publish profile).
-- [ ] Grant workflow permissions in Azure (service principal / federated identity).
-- [ ] Author workflow YAML (build, publish, deploy to App Service).
-- [ ] Document required GitHub secrets/variables.
+- [x] Decide on authentication method (OIDC federated credentials vs. publish profile).
+- [x] Grant workflow permissions in Azure (service principal / federated identity).
+- [x] Author workflow YAML (build, publish, deploy to App Service).
+- [x] Document required GitHub secrets/variables.
 - [ ] Note rollback/cleanup considerations (optional).
 
 Step 7 – GitHub Actions API call workflow
-- [ ] Register a separate Azure AD app (client credentials) or reuse existing as needed.
-- [ ] Configure workflow to obtain access token (Azure CLI `az account get-access-token` or `azure/login`).
-- [ ] Implement job that hits protected endpoint (`GET /api/tests/summary`).
-- [ ] Add sample payload for `POST /api/tests/result` before summary call.
-- [ ] Capture response artifacts or log output for visibility.
+- [x] Register a separate Azure AD app (client credentials) or reuse existing as needed.
+- [x] Configure workflow to obtain access token (Azure CLI `az account get-access-token` or `azure/login`).
+
+- [x] Add sample payload for `POST /api/tests/result`.
+- [x] Implement job that hits protected endpoint (`GET /api/tests/summary`).
+- [x] Capture response artifacts or log output for visibility.
 
 Step 8 – Testing and validation
 - [ ] Define manual/local test cases (happy path, invalid token, bad outcome value).
