@@ -12,18 +12,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up Azure CLI
-        uses: azure/setup-azure-cli@v1  # Updated action
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
         with:
-          azure-subscription: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          dotnet-version: '9.0.x'  # Specify your .NET version here
+
+      - name: Restore dependencies
+        run: dotnet restore ./MetricsApi/MetricsApi.csproj  # Adjust the path to your .csproj file
+
+      - name: Build the project
+        run: dotnet build ./MetricsApi/MetricsApi.csproj --configuration Release --no-restore
+
+      - name: Publish the project
+        run: dotnet publish ./MetricsApi/MetricsApi.csproj --configuration Release --output ./publish  # Output to a publish folder
+
+      - name: Create ZIP file
+        run: zip -r ./publish/package.zip ./publish/*  # Create a ZIP file from the published output
 
       - name: Login to Azure using OIDC
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          client-id: ${{ secrets.AZURE_APP_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy to Azure Web App
         run: |
-          az webapp deploy --name ${{ vars.AZURE_WEBAPP_NAME }} --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} --src-path ./path/to/your/package.zip
+          az webapp deploy --name ${{ vars.AZURE_WEBAPP_NAME }} --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} --src-path ./publish/package.zip
