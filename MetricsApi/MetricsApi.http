@@ -1,0 +1,24 @@
+@MetricsApi_HostAddress = https://localhost:5001
+@AccessToken = eyJ...replace-with-real-token...
+
+### Submit a test result (requires bearer token)
+POST {{MetricsApi_HostAddress}}/api/tests/result
+Authorization: Bearer {{AccessToken}}
+Content-Type: application/json
+
+{
+	"buildId": "build-123",
+	"testName": "Example.Test",
+	"outcome": "Passed",
+	"durationSeconds": 12.34,
+	"completedAt": "2025-10-04T12:00:00Z"
+}
+
+### Get test summary
+GET {{MetricsApi_HostAddress}}/api/tests/summary
+Authorization: Bearer {{AccessToken}}
+Accept: application/json
+
+### Clear results
+POST {{MetricsApi_HostAddress}}/api/tests/clear
+Authorization: Bearer {{AccessToken}}

@@ -1,0 +1,42 @@
+[
+  {
+    "name": "AzureAd:Instance",
+    "slotSetting": false,
+    "value": null
+  },
+  {
+    "name": "AzureAd:TenantId",
+    "slotSetting": false,
+    "value": null
+  },
+  {
+    "name": "AzureAd:ClientId",
+    "slotSetting": false,
+    "value": null
+  },
+  {
+    "name": "AzureAd:Audience",
+    "slotSetting": false,
+    "value": null
+  },
+  {
+    "name": "Swagger:ClientId",
+    "slotSetting": false,
+    "value": null
+  },
+  {
+    "name": "Swagger:Scope",
+    "slotSetting": false,
+    "value": null
+  },
+  {
+    "name": "WEBSITE_RUN_FROM_PACKAGE",
+    "slotSetting": false,
+    "value": null
+  },
+  {
+    "name": "ASPNETCORE_ENVIRONMENT",
+    "slotSetting": false,
+    "value": null
+  }
+]
