@@ -1,5 +1,8 @@
 name: Deploy web app to Azure
 
+permissions:
+  id-token: write  # Allow the workflow to request an ID token
+
 on:
   push:
     branches:
