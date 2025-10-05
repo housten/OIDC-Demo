@@ -24,12 +24,21 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new() { Title = "Metrics API", Version = "v1" });
-    var scope = builder.Configuration["Swagger:Scope"] ?? builder.Configuration["AzureAd:Audience"];
+
+    var scopeConfig = builder.Configuration["Swagger:Scope"];
     var scopeDisplay = builder.Configuration["Swagger:ScopeDescription"] ?? "Access Metrics API";
-    if (string.IsNullOrWhiteSpace(scope))
+    string[] scopes;
+
+    if (string.IsNullOrWhiteSpace(scopeConfig))
     {
-        scope = "api://{api-client-id}/.default";
+        var apiClientId = builder.Configuration["AzureAd:ClientId"];
+        scopes = new[] { $"api://{apiClientId}/.default" };
     }
+    else
+    {
+        scopes = scopeConfig.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    }
+
     options.AddSecurityDefinition("oauth2", new()
     {
         Type = Microsoft.OpenApi.Models.SecuritySchemeType.OAuth2,
@@ -39,10 +48,7 @@ builder.Services.AddSwaggerGen(options =>
             {
                 AuthorizationUrl = new Uri($"{builder.Configuration["AzureAd:Instance"]}{builder.Configuration["AzureAd:TenantId"]}/oauth2/v2.0/authorize"),
                 TokenUrl = new Uri($"{builder.Configuration["AzureAd:Instance"]}{builder.Configuration["AzureAd:TenantId"]}/oauth2/v2.0/token"),
-                Scopes = new Dictionary<string, string>
-                {
-                    { scope, scopeDisplay }
-                }
+                Scopes = scopes.ToDictionary(s => s, s => scopeDisplay)
             }
         }
     });
@@ -73,7 +79,7 @@ app.UseSwaggerUI(options =>
         options.OAuthUsePkce();
     }
 
-    var swaggerScopes = app.Configuration.GetSection("Swagger:Scopes").Get<string[]>();
+    var swaggerScopes = app.Configuration["Swagger:Scope"]?.Split(' ');
     var singleScope = app.Configuration["Swagger:Scope"] ?? app.Configuration["AzureAd:Audience"];
 
     if (swaggerScopes is { Length: > 0 })

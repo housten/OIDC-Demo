@@ -1,1 +1,3 @@
 deployment/*.json
+metricsapi/bin/*
+metricsapi/obj/*
