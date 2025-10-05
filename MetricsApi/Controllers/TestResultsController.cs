@@ -1,12 +1,14 @@
 using System;
 using MetricsApi.Models;
 using MetricsApi.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MetricsApi.Controllers;
 
 [ApiController]
 [Route("api/tests")]
+[Authorize]
 public class TestResultsController : ControllerBase
 {
     private static readonly string[] SupportedOutcomes = Enum.GetNames<TestOutcome>();
