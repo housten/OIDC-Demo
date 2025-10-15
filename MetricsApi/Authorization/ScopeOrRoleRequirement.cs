@@ -1,3 +1,5 @@
+namespace MetricsApi.Authorization; 
+
 using Microsoft.AspNetCore.Authorization;
 
 public class ScopeOrRoleRequirement : IAuthorizationRequirement
