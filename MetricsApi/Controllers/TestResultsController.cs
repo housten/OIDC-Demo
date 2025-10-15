@@ -21,7 +21,7 @@ public class TestResultsController : ControllerBase
     }
 
     [HttpPost("result")]
-    [RequiredScope("Metrics.Submit,Metrics.Manage")]
+    [Authorize(Policy = "CanWriteMetrics")]
     public ActionResult SubmitResult([FromBody] TestResultRequest request)
     {
         if (!Enum.TryParse<TestOutcome>(request.Outcome, true, out var outcome))
@@ -42,7 +42,7 @@ public class TestResultsController : ControllerBase
     }
 
     [HttpGet("summary")]
-    [RequiredScope("Metrics.Retrieve,Metrics.Manage")]
+    [Authorize(Policy = "CanReadMetrics")]
     public ActionResult<TestSummaryResponse> GetSummary()
     {
         var summary = _metricsStore.GetSummary();
@@ -61,7 +61,7 @@ public class TestResultsController : ControllerBase
     }
 
     [HttpPost("clear")]
-    [RequiredScope("Metrics.Clear,Metrics.Manage")]
+    [Authorize(Policy = "CanClearMetrics")]
     public IActionResult Clear()
     {
         _metricsStore.Clear();
