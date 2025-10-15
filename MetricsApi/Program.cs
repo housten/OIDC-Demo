@@ -1,7 +1,9 @@
+using MetricsApi.Authorization; 
 using MetricsApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Identity.Web;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,9 +14,22 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 
+// NEW: Configure the JWT Bearer to correctly map the 'roles' claim for application permissions.
+builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+{
+    options.TokenValidationParameters.RoleClaimType = "roles";
+});
+
+// NEW: Register the custom authorization handler.
+builder.Services.AddSingleton<IAuthorizationHandler, ScopeOrRoleHandler>();
+
 builder.Services.AddAuthorization(options =>
 {
     options.FallbackPolicy = options.DefaultPolicy;
+
+    // NEW: Add the custom policy for checking scope OR role.
+    options.AddPolicy("CanSubmitMetrics", policy =>
+        policy.AddRequirements(new ScopeOrRoleRequirement("Metrics.Submit", "Metrics.ReadWrite")));
 });
 
 builder.Services.AddSingleton<IMetricsStore, MetricsStore>();
