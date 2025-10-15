@@ -21,16 +21,39 @@ builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSch
 });
 
 // NEW: Register the custom authorization handler.
+// In your Program.cs
+
+// ... (other services)
+
+// Register the custom authorization handler (no changes here)
 builder.Services.AddSingleton<IAuthorizationHandler, ScopeOrRoleHandler>();
 
 builder.Services.AddAuthorization(options =>
 {
     options.FallbackPolicy = options.DefaultPolicy;
 
-    // NEW: Add the custom policy for checking scope OR role.
-    options.AddPolicy("CanSubmitMetrics", policy =>
-        policy.AddRequirements(new ScopeOrRoleRequirement("Metrics.Submit", "Metrics.ReadWrite")));
+    // Define a policy for each action, specifying the required scope for users
+    // and the required role for applications.
+    
+    // Policy for submitting results
+    options.AddPolicy("CanWriteMetrics", policy =>
+        policy.AddRequirements(new ScopeOrRoleRequirement(
+            scope: "Metrics.Submit", 
+            role: "Metrics.Manage")));
+
+    // Policy for retrieving results
+    options.AddPolicy("CanReadMetrics", policy =>
+        policy.AddRequirements(new ScopeOrRoleRequirement(
+            scope: "Metrics.Retrieve", 
+            role: "Metrics.Manage")));
+
+    // Policy for clearing results
+    options.AddPolicy("CanClearMetrics", policy =>
+        policy.AddRequirements(new ScopeOrRoleRequirement(
+            scope: "Metrics.Clear", 
+            role: "Metrics.Manage")));
 });
+
 
 builder.Services.AddSingleton<IMetricsStore, MetricsStore>();
 
