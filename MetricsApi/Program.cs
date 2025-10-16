@@ -1,9 +1,7 @@
-using MetricsApi.Authorization; 
 using MetricsApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Identity.Web;
 using Microsoft.OpenApi.Models;
-using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,38 +18,9 @@ builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSch
     options.TokenValidationParameters.RoleClaimType = "roles";
 });
 
-// NEW: Register the custom authorization handler.
-// In your Program.cs
-
-// ... (other services)
-
-// Register the custom authorization handler (no changes here)
-builder.Services.AddSingleton<IAuthorizationHandler, ScopeOrRoleHandler>();
-
 builder.Services.AddAuthorization(options =>
 {
     options.FallbackPolicy = options.DefaultPolicy;
-
-    // Define a policy for each action, specifying the required scope for users
-    // and the required role for applications.
-    
-    // Policy for submitting results
-    options.AddPolicy("CanWriteMetrics", policy =>
-        policy.AddRequirements(new ScopeOrRoleRequirement(
-            scope: "Metrics.Submit", 
-            role: "Metrics.Manage")));
-
-    // Policy for retrieving results
-    options.AddPolicy("CanReadMetrics", policy =>
-        policy.AddRequirements(new ScopeOrRoleRequirement(
-            scope: "Metrics.Retrieve", 
-            role: "Metrics.Manage")));
-
-    // Policy for clearing results
-    options.AddPolicy("CanClearMetrics", policy =>
-        policy.AddRequirements(new ScopeOrRoleRequirement(
-            scope: "Metrics.Clear", 
-            role: "Metrics.Manage")));
 });
 
 
