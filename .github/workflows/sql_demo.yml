@@ -43,5 +43,5 @@ jobs:
           SQLSERVER: sqldemo-oidc.database.windows.net
           DATABASE: demoSQL
         run: |
-          # Use token from previous step
-          sqlcmd -S $SQLSERVER -d $DATABASE -G -U "" -P "${{ steps.get-token.outputs.token }}" -Q "SELECT @@VERSION AS 'SQL Server Version';"
+          # Use token from previous step with --access-token parameter
+          sqlcmd -S $SQLSERVER -d $DATABASE --access-token "${{ steps.get-token.outputs.token }}" -Q "SELECT @@VERSION AS 'SQL Server Version';"
