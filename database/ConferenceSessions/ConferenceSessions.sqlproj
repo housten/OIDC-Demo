@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.Build.Sql/project">
+  <PropertyGroup>
+    <Target>SqlAzureV12</Target>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <SqlFiles Include="Tables\ConferenceSessions.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PostDeploy Include="Post-Deployment\SeedConferenceSessions.sql" />
+  </ItemGroup>
+</Project>

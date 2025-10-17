@@ -37,7 +37,7 @@ jobs:
             echo "Failed to request access token." >&2
             exit 1
           fi
-          echo "::add-mask::$access_token"
+                   
           echo "token=$access_token" >> "$GITHUB_OUTPUT"
 
       - name: Submit sample test result

@@ -21,20 +21,30 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Install sqlcmd
+      - name: Install SqlPackage CLI
         run: |
-          # Download and install go-sqlcmd v1.8.2
-          wget -q https://github.com/microsoft/go-sqlcmd/releases/download/v1.8.2/sqlcmd-linux-amd64.tar.bz2
-          tar -xjf sqlcmd-linux-amd64.tar.bz2
-          sudo mv sqlcmd /usr/local/bin/
-          sudo chmod +x /usr/local/bin/sqlcmd
-          sqlcmd --version
+          dotnet tool install -g Microsoft.SqlPackage
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      - name: Query Azure SQL Database
+      - name: Install SQL project templates
+        run: |
+          dotnet new install Microsoft.Build.Sql.Templates
+
+      - name: Build ConferenceSessions dacpac
+        run: |
+          dotnet build database/ConferenceSessions/ConferenceSessions.sqlproj -c Release
+
+      - name: Publish ConferenceSessions dacpac
         env:
           SQLSERVER: sqldemo-oidc.database.windows.net
           DATABASE: demoSQLdb
         run: |
-          sqlcmd -S "$SQLSERVER" -d "$DATABASE" \
-            --authentication-method ActiveDirectoryDefault \
-            -Q "SELECT @@VERSION AS [SQL Server Version];"
+          DACPAC_PATH="database/ConferenceSessions/bin/Release/ConferenceSessions.dacpac"
+          ACCESS_TOKEN=$(az account get-access-token --resource https://database.windows.net --query accessToken -o tsv)
+          echo "::add-mask::$ACCESS_TOKEN"
+          sqlpackage \
+            /Action:Publish \
+            /SourceFile:"$DACPAC_PATH" \
+            /TargetServerName:"$SQLSERVER" \
+            /TargetDatabaseName:"$DATABASE" \
+            /AccessToken:"$ACCESS_TOKEN"
