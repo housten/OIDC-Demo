@@ -1,7 +1,7 @@
 name: Azure SQL OIDC Demo
 
 on:
-  workflow_dispatch:  # Manual trigger for testing
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -11,8 +11,7 @@ jobs:
   sql-access:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Azure Login with OIDC
         uses: azure/login@v2
@@ -21,27 +20,26 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Get SQL Access Token
-        id: get-token
+      - name: Get SQL access token
+        id: sql-token
         run: |
           TOKEN=$(az account get-access-token --resource https://database.windows.net --query accessToken -o tsv)
           echo "::add-mask::$TOKEN"
-          echo "token=$TOKEN" >> $GITHUB_OUTPUT
-          echo "Access token obtained successfully"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
 
-      - name: Install sqlcmd
+      - name: Install sqlcmd (go-sqlcmd v1.8.2)
         run: |
-          # Download and install go-sqlcmd v1.8.2
           wget -q https://github.com/microsoft/go-sqlcmd/releases/download/v1.8.2/sqlcmd-linux-amd64.tar.bz2
           tar -xjf sqlcmd-linux-amd64.tar.bz2
           sudo mv sqlcmd /usr/local/bin/
           sudo chmod +x /usr/local/bin/sqlcmd
-          sqlcmd --version
 
       - name: Query Azure SQL Database
         env:
           SQLSERVER: sqldemo-oidc.database.windows.net
           DATABASE: demoSQL
         run: |
-          # Use ActiveDirectoryDefault authentication method which picks up OIDC context
-          sqlcmd -S $SQLSERVER -d $DATABASE --authentication-method ActiveDirectoryDefault -Q "SELECT @@VERSION AS 'SQL Server Version';"
+          sqlcmd query "SELECT @@VERSION AS [SQL Server Version];" \
+            --server $SQLSERVER \
+            --database $DATABASE \
+            --access-token "${{ steps.sql-token.outputs.token }}"
