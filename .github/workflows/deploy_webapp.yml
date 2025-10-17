@@ -8,6 +8,8 @@ on:
   push:
     branches:
       - main  
+    paths-ignore:
+      - .github/workflows/sql_demo.yml
 
 jobs:
   deploy:
