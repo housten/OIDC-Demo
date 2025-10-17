@@ -37,9 +37,7 @@ jobs:
       - name: Query Azure SQL Database
         env:
           SQLSERVER: sqldemo-oidc.database.windows.net
-          DATABASE: demoSQL
+          DATABASE: demoSQLdb
         run: |
           sqlcmd query "SELECT @@VERSION AS [SQL Server Version];" \
-            --server $SQLSERVER \
-            --database $DATABASE \
-            --access-token "${{ steps.sql-token.outputs.token }}"
+            --connection-string "Server=tcp:${SQLSERVER},1433;Database=${DATABASE};Encrypt=True;TrustServerCertificate=False;Access Token=${{ steps.sql-token.outputs.token }}"
