@@ -42,7 +42,6 @@ jobs:
         env:
           SQLSERVER: sqldemo-oidc.database.windows.net
           DATABASE: demoSQLdb
-          SQLCMDPASSWORD: ${{ steps.get-token.outputs.token }}
         run: |
           # Use ActiveDirectoryServicePrincipal authentication with the application client ID
           sqlcmd -S $SQLSERVER -d $DATABASE --authentication-method ActiveDirectoryServicePrincipal -U ${{ secrets.SQL_APP_ID }} -Q "SELECT @@VERSION AS 'SQL Server Version';"
