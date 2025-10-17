@@ -21,14 +21,6 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Get SQL Access Token
-        id: get-token
-        run: |
-          TOKEN=$(az account get-access-token --resource https://database.windows.net --query accessToken -o tsv)
-          echo "::add-mask::$TOKEN"
-          echo "token=$TOKEN" >> $GITHUB_OUTPUT
-          echo "Access token obtained successfully"
-
       - name: Install sqlcmd
         run: |
           # Download and install go-sqlcmd v1.8.2
@@ -42,10 +34,7 @@ jobs:
         env:
           SQLSERVER: sqldemo-oidc.database.windows.net
           DATABASE: demoSQLdb
-          ACCESS_TOKEN: ${{ steps.get-token.outputs.token }}
         run: |
-          sqlcmd query \
-            --server "$SQLSERVER" \
-            --database "$DATABASE" \
-            --access-token "$ACCESS_TOKEN" \
-            --query "SELECT @@VERSION AS [SQL Server Version];"
+          sqlcmd -S "$SQLSERVER" -d "$DATABASE" \
+            --authentication-method ActiveDirectoryDefault \
+            -Q "SELECT @@VERSION AS [SQL Server Version];"
