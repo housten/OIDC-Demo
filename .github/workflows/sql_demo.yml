@@ -44,4 +44,4 @@ jobs:
           DATABASE: demoSQL
         run: |
           # Use token from previous step
-          sqlcmd -S $SQLSERVER -d $DATABASE -G -P "${{ steps.get-token.outputs.token }}" -Q "SELECT @@VERSION AS 'SQL Server Version';"
+          sqlcmd -S $SQLSERVER -d $DATABASE -G -U "" -P "${{ steps.get-token.outputs.token }}" -Q "SELECT @@VERSION AS 'SQL Server Version';"
