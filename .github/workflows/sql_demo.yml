@@ -1,0 +1,28 @@
+name: Azure SQL OIDC Demo
+
+on:
+  workflow_dispatch:  # Manual trigger for testing
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  sql-access:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.SQL_APP_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Test SQL Connection
+        run: |
+          # Get access token for Azure SQL
+          TOKEN=$(az account get-access-token --resource https://database.windows.net --query accessToken -o tsv)
+          echo "Access token obtained successfully"
