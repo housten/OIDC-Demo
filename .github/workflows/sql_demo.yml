@@ -21,8 +21,25 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Test SQL Connection
+      - name: Get SQL Access Token
+        id: get-token
         run: |
-          # Get access token for Azure SQL
           TOKEN=$(az account get-access-token --resource https://database.windows.net --query accessToken -o tsv)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
           echo "Access token obtained successfully"
+
+      - name: Install sqlcmd
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
+          sudo add-apt-repository "$(wget -qO- https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list)"
+          sudo apt-get update
+          sudo apt-get install -y sqlcmd
+
+      - name: Query Azure SQL Database
+        env:
+          SQLSERVER: sqldemo-oidc.database.windows.net
+          DATABASE: demoSQL
+        run: |
+          # Use token from previous step
+          sqlcmd -S $SQLSERVER -d $DATABASE -G -P "${{ steps.get-token.outputs.token }}" -Q "SELECT @@VERSION AS 'SQL Server Version';"
