@@ -31,9 +31,11 @@ jobs:
 
       - name: Install sqlcmd
         run: |
-          # Download and install go-sqlcmd (cross-platform version)
-          curl -sL https://aka.ms/go-sqlcmd-linux-amd64.tar.bz2 | tar -xjC /tmp
-          sudo mv /tmp/sqlcmd /usr/local/bin/
+          # Download and install go-sqlcmd v1.8.2
+          wget -q https://github.com/microsoft/go-sqlcmd/releases/download/v1.8.2/sqlcmd-linux-amd64.tar.bz2
+          tar -xjf sqlcmd-linux-amd64.tar.bz2
+          sudo mv sqlcmd /usr/local/bin/
+          sudo chmod +x /usr/local/bin/sqlcmd
           sqlcmd --version
 
       - name: Query Azure SQL Database
