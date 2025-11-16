@@ -1,0 +1,13 @@
+
+USE demoSQLdb;
+
+GO
+DROP USER IF EXISTS [SQLOIDCPipelineDemo];
+CREATE USER [SQLOIDCPipelineDemo] FROM EXTERNAL PROVIDER;
+ALTER ROLE db_datareader ADD MEMBER [SQLOIDCPipelineDemo];
+ALTER ROLE db_datawriter ADD MEMBER [SQLOIDCPipelineDemo];
+
+
+CREATE USER [app=efea903b-c3a6-46d0-a856-62dce602e200] FROM EXTERNAL PROVIDER;
+ALTER ROLE db_datareader ADD MEMBER [app=efea903b-c3a6-46d0-a856-62dce602e200];
+ALTER ROLE db_datawriter ADD MEMBER [app=efea903b-c3a6-46d0-a856-62dce602e200];
