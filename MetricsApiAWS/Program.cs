@@ -3,7 +3,7 @@ using Amazon.Lambda.AspNetCoreServer.Hosting;
 // 1. add references
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-
+using System.Security.Claims;
 // end 1.
 
 
@@ -54,10 +54,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("ReadAccess", policy =>
-        policy.RequireClaim("scope", "metrics-api/read"));
+        policy.RequireAssertion(context =>
+        {
+            // Allow if Cognito scope present OR IAM principal present
+            var hasScope = context.User.HasClaim("scope", "metrics-api/read");
+            var isIamPrincipal = context.User.HasClaim(c => c.Type == "iam-principal");
+            return hasScope || isIamPrincipal;
+        }));
 
     options.AddPolicy("WriteAccess", policy =>
-        policy.RequireClaim("scope", "metrics-api/write"));
+        policy.RequireAssertion(context =>
+        {
+            // Allow if Cognito scope present OR IAM principal present
+            var hasScope = context.User.HasClaim("scope", "metrics-api/write");
+            var isIamPrincipal = context.User.HasClaim(c => c.Type == "iam-principal");
+            return hasScope || isIamPrincipal;
+        }));
 });
 // end 4.
 
@@ -109,6 +121,30 @@ app.UseSwaggerUI(options =>
 app.UseRouting();
 // 6. Enable authentication and authorization middleware
 // Add authentication and authorization middleware
+app.Use(async (context, next) =>
+{
+    // Check if request came via Lambda Function URL with IAM auth
+    // Lambda context is available via ILambdaContext or headers
+    var requestContext = context.Request.Headers["x-amzn-lambda-request-context"].FirstOrDefault();
+    
+    if (!string.IsNullOrEmpty(requestContext) && requestContext.Contains("invokedFunctionArn"))
+    {
+        // IAM-authenticated request via Function URL
+        // Create a claims identity for authorization policies
+        var claims = new List<Claim>
+        {
+            new Claim("iam-principal", "github-actions"),
+            new Claim(ClaimTypes.Role, "automation")
+        };
+        var identity = new ClaimsIdentity(claims, "IAM");
+        context.User = new ClaimsPrincipal(identity);
+        
+        Console.WriteLine("Request authenticated via IAM (Function URL)");
+    }
+    
+    await next();
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 // end 6.

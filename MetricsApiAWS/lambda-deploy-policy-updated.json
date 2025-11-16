@@ -1,0 +1,18 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "lambda:UpdateFunctionCode",
+        "lambda:GetFunction",
+        "lambda:UpdateFunctionConfiguration",
+        "lambda:CreateFunctionUrlConfig",
+        "lambda:UpdateFunctionUrlConfig",
+        "lambda:GetFunctionUrlConfig",
+        "lambda:InvokeFunctionUrl"
+      ],
+      "Resource": "arn:aws:lambda:eu-north-1:140977286959:function:metrics-api-lambda"
+    }
+  ]
+}
