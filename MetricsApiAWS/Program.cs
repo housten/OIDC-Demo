@@ -119,6 +119,8 @@ app.UseSwaggerUI(options =>
 //app.UseHttpsRedirection();
 app.UseRouting();
 
+app.UseAuthentication(); // see auth here!
+
 // Middleware: enrich principal from Function URL or test header
 app.Use(async (context, next) =>
 {
@@ -128,56 +130,30 @@ app.Use(async (context, next) =>
         await next();
         return;
     }
+    var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
 
-    // Function URL supplies this header (JSON)
-    var lambdaCtxHeader = context.Request.Headers["x-amzn-lambda-request-context"].FirstOrDefault();
-
-
-    if (!string.IsNullOrEmpty(lambdaCtxHeader))
+    // Detect AWS SigV4 signed request to Function URL
+    if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("AWS4-HMAC-SHA256"))
     {
-        string roleArn = "arn:aws:iam::140977286959:role/GitHubActionsOIDC-Lambda-Deployer";
-        string accountId = "140977286959";
-        string executionSource = "github-actions";
-
-        try
-        {
-            // Parse Lambda context (JSON)
-            using var doc = JsonDocument.Parse(lambdaCtxHeader);
-            
-            if (doc.RootElement.TryGetProperty("accountId", out var acct))
-                accountId = acct.GetString() ?? accountId;
-            
-            if (doc.RootElement.TryGetProperty("invokedFunctionArn", out var fnArn))
-            {
-                var arn = fnArn.GetString();
-                // Extract account and region from function ARN if needed
-                Console.WriteLine($"Invoked via Function ARN: {arn}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Failed to parse Lambda context: {ex.Message}");
-        }
-
+        // We cannot extract role ARN from the request, so use configured value
+        var roleArn = "arn:aws:iam::140977286959:role/GitHubActionsOIDC-Lambda-Deployer";
         var claims = new List<Claim>
         {
             new Claim("awsRoleArn", roleArn),
-            new Claim("awsAccountId", accountId),
-            new Claim("executionSource", executionSource),
+            new Claim("executionSource", "github-actions"),
             new Claim("authType", "IAM"),
-            new Claim(ClaimTypes.Name, "GitHubActions")  // Add name claim
+            new Claim(ClaimTypes.Name, "GitHubActions")
         };
-                // KEY FIX: Mark identity as authenticated
-        var identity = new ClaimsIdentity(claims, authenticationType: "IAM");
-        Console.WriteLine($"Identity IsAuthenticated: {identity.IsAuthenticated}"); // Should be true
-        context.User = new ClaimsPrincipal(identity);
-        Console.WriteLine($"✅ Request authenticated via IAM (Role: {roleArn}, IsAuthenticated: {identity.IsAuthenticated})");
 
+        var identity = new ClaimsIdentity(claims, "IAM-SigV4");
+        context.User = new ClaimsPrincipal(identity);
+        Console.WriteLine($"✅ SigV4 request authenticated via IAM-SigV4 (IsAuthenticated={identity.IsAuthenticated})");
     }
+
     await next();
 });
 
-app.UseAuthentication();
+
 app.UseAuthorization();
 // end 6.
 
