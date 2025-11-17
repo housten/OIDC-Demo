@@ -19,7 +19,10 @@ var builder = WebApplication.CreateBuilder(args);
 var region = builder.Configuration["AWS:Region"] ?? builder.Configuration["AWS__Region"];
 var userPoolId = builder.Configuration["AWS:UserPoolId"] ?? builder.Configuration["AWS__UserPoolId"];
 //var appClientId = builder.Configuration["AWS:AppClientId"] ?? builder.Configuration["AWS__AppClientId"];
+
 var issuer = $"https://cognito-idp.{region}.amazonaws.com/{userPoolId}";
+var githubIssuer   = "https://token.actions.githubusercontent.com";
+var githubAudience = "metrics-api";
 
 // end 2.
 
@@ -28,17 +31,21 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.Authority = issuer;
-        options.MetadataAddress = $"{issuer}/.well-known/openid-configuration";
-
+        options.Authority = githubIssuer;
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = true,
-            ValidIssuer = issuer,
-            ValidateAudience = false, // Client credentials flow doesn't include audience
-            ValidateLifetime = true,
+            ValidateIssuer           = true,
+            ValidIssuer              = githubIssuer,
+
+            ValidateAudience         = true,
+            ValidAudience            = githubAudience,
+
+            ValidateLifetime         = true,
             ValidateIssuerSigningKey = true
         };
+
+        // GitHub uses "sub", "repository", "aud", etc.
+        options.MapInboundClaims = false;
         // Enable for debugging
         options.Events = new JwtBearerEvents
         {
@@ -60,11 +67,10 @@ builder.Services
 // 4. Add authorization policies based on scopes
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("ReadAccess",  p => p.RequireAssertion(ctx =>
-        ctx.User.FindFirst("scope")?.Value?.Contains("metrics-api/read") == true));
-
-    options.AddPolicy("WriteAccess", p => p.RequireAssertion(ctx =>
-        ctx.User.FindFirst("scope")?.Value?.Contains("metrics-api/write") == true));
+    // For now: any valid GitHub OIDC token can do both read and write.
+    // You can tighten this later to specific repo/environment.
+    options.AddPolicy("ReadAccess",  p => p.RequireAuthenticatedUser());
+    options.AddPolicy("WriteAccess", p => p.RequireAuthenticatedUser());
 });
 // end 4.
 
