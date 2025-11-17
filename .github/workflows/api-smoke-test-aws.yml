@@ -13,6 +13,7 @@ on:
 
 env:
   REGION: eu-north-1
+  FUNCTION_NAME: metrics-api-lambda
   FUNCTION_URL: https://ginqh6vfhuokxidskdt2df7xxq0cqpjq.lambda-url.eu-north-1.on.aws
 
 jobs:
@@ -31,41 +32,42 @@ jobs:
       - name: Submit sample test result (write operation)
         id: submit
         run: |
-          payload=$(cat <<EOF
+          # Create payload
+          cat > event.json <<EOF
           {
-            "buildId": "build-${{ github.run_id }}",
-            "testName": "smoke-test-${{ github.run_number }}",
-            "outcome": "Passed",
-            "durationSeconds": 1.5
+            "version": "2.0",
+            "routeKey": "POST /api/testresults/result",
+            "rawPath": "/api/testresults/result",
+            "requestContext": {
+              "http": {
+                "method": "POST",
+                "path": "/api/testresults/result"
+              },
+              "invokedFunctionArn": "arn:aws:lambda:${{ env.REGION }}:140977286959:function:${{ env.FUNCTION_NAME }}"
+            },
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": "{\"buildId\":\"build-${{ github.run_id }}\",\"testName\":\"smoke-test-${{ github.run_number }}\",\"outcome\":\"Passed\",\"durationSeconds\":1.5}"
           }
           EOF
-          )
           
-          echo "$payload" | jq '.' > request.json
-          
-          # Use aws4-request signing via curl with AWS SigV4
-          http_status=$(aws lambda invoke-url \
-            --region ${{ env.REGION }} \
-            --function-name metrics-api-lambda \
-            --payload "$payload" \
-            --qualifier \$LATEST \
-            --invocation-type RequestResponse \
+          # Invoke Lambda directly
+          aws lambda invoke \
+            --function-name ${{ env.FUNCTION_NAME }} \
+            --payload file://event.json \
             --cli-binary-format raw-in-base64-out \
-            response.json \
-            --query 'StatusCode' --output text)
+            response.json
           
-          echo "Response status: $http_status"
+          echo "Response:"
           cat response.json | jq '.'
           
-          if [ "$http_status" -ne 200 ]; then
-            echo "❌ Submit failed with status $http_status"
-            exit 1
-          fi
+          # Parse Lambda response (contains statusCode in body)
+          status_code=$(cat response.json | jq -r '.statusCode // empty')
           
-          # Check response body for 202 Accepted
-          body_status=$(cat response.json | jq -r '.statusCode // empty')
-          if [ "$body_status" != "202" ]; then
-            echo "❌ Expected HTTP 202, got $body_status"
+          if [ "$status_code" != "202" ]; then
+            echo "❌ Expected HTTP 202, got $status_code"
+            cat response.json
             exit 1
           fi
           
@@ -74,38 +76,68 @@ jobs:
       - name: Fetch metrics summary (read operation)
         id: summary
         run: |
-          # For GET requests via Function URL, we'll use direct HTTPS call with SigV4 signing
-          # Install awscurl for easier SigV4 signing
-          pip install awscurl
+          cat > event.json <<EOF
+          {
+            "version": "2.0",
+            "routeKey": "GET /api/testresults/summary",
+            "rawPath": "/api/testresults/summary",
+            "requestContext": {
+              "http": {
+                "method": "GET",
+                "path": "/api/testresults/summary"
+              },
+              "invokedFunctionArn": "arn:aws:lambda:${{ env.REGION }}:140977286959:function:${{ env.FUNCTION_NAME }}"
+            }
+          }
+          EOF
           
-          http_status=$(awscurl --service lambda --region ${{ env.REGION }} \
-            "${FUNCTION_URL}api/testresults/summary" \
-            -H "Content-Type: application/json" \
-            -o summary.json -w "%{http_code}")
+          aws lambda invoke \
+            --function-name ${{ env.FUNCTION_NAME }} \
+            --payload file://event.json \
+            --cli-binary-format raw-in-base64-out \
+            summary.json
           
-          echo "Response status: $http_status"
+          echo "Summary response:"
           cat summary.json | jq '.'
           
-          if [ "$http_status" -ne 200 ]; then
-            echo "❌ Summary fetch failed with status $http_status"
+          status_code=$(cat summary.json | jq -r '.statusCode // empty')
+          
+          if [ "$status_code" != "200" ]; then
+            echo "❌ Expected HTTP 200, got $status_code"
             exit 1
           fi
           
           echo "✅ Summary fetch successful"
 
       - name: Clear test data (write operation)
-        if: false  # Disabled to preserve data; enable if needed
+        if: false  # Disabled to preserve data
         id: clear
         run: |
-          http_status=$(awscurl --service lambda --region ${{ env.REGION }} \
-            -X POST "${FUNCTION_URL}api/testresults/clear" \
-            -H "Content-Type: application/json" \
-            -o clear.json -w "%{http_code}")
+          cat > event.json <<EOF
+          {
+            "version": "2.0",
+            "routeKey": "POST /api/testresults/clear",
+            "rawPath": "/api/testresults/clear",
+            "requestContext": {
+              "http": {
+                "method": "POST",
+                "path": "/api/testresults/clear"
+              },
+              "invokedFunctionArn": "arn:aws:lambda:${{ env.REGION }}:140977286959:function:${{ env.FUNCTION_NAME }}"
+            }
+          }
+          EOF
           
-          echo "Response status: $http_status"
+          aws lambda invoke \
+            --function-name ${{ env.FUNCTION_NAME }} \
+            --payload file://event.json \
+            --cli-binary-format raw-in-base64-out \
+            clear.json
           
-          if [ "$http_status" -ne 202 ]; then
-            echo "❌ Clear failed with status $http_status"
+          status_code=$(cat clear.json | jq -r '.statusCode // empty')
+          
+          if [ "$status_code" != "202" ]; then
+            echo "❌ Clear failed"
             exit 1
           fi
           
@@ -117,7 +149,7 @@ jobs:
         with:
           name: api-test-results
           path: |
-            request.json
+            event.json
             response.json
             summary.json
             clear.json
@@ -128,11 +160,11 @@ jobs:
         run: |
           echo "## 🧪 AWS API Smoke Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Function URL:** \`${FUNCTION_URL}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Authentication:** AWS IAM (SigV4) - No secrets required ✅" >> $GITHUB_STEP_SUMMARY
+          echo "**Function:** \`${{ env.FUNCTION_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Authentication:** AWS IAM (Direct Invoke) - No secrets required ✅" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Operation | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Submit Result | ${{ steps.submit.outcome }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Fetch Summary | ${{ steps.summary.outcome }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Clear Data | ${{ steps.clear.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Clear Data | ${{ steps.clear.outcome == '' && 'skipped' || steps.clear.outcome }} |" >> $GITHUB_STEP_SUMMARY
