@@ -13,123 +13,75 @@ on:
 
 env:
   REGION: eu-north-1
-  FUNCTION_NAME: metrics-api-lambda
-  FUNCTION_URL: https://ginqh6vfhuokxidskdt2df7xxq0cqpjq.lambda-url.eu-north-1.on.aws/
+  GITHUB_AUDIENCE: metrics-api
+  API_URL: https://k6opu4nrel.execute-api.eu-north-1.amazonaws.com
 
 jobs:
   test-api:
     runs-on: ubuntu-latest
     steps:
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::140977286959:role/GitHubActionsOIDC-Lambda-Deployer
-          aws-region: ${{ env.REGION }}
-
-      - name: Verify AWS identity
-        run: aws sts get-caller-identity
-
-      - name: Install dependencies
+      - name: Install tools
         run: |
-          pip install boto3 requests requests-aws4auth
+          sudo apt-get install -y jq
 
-      - name: Create signing helper script
+      - name: Get GitHub OIDC token for API
+        id: gh-oidc
+        env:
+          GITHUB_AUDIENCE: ${{ env.GITHUB_AUDIENCE }}
         run: |
-          cat > sign_request.py <<'EOF'
-          import sys, json, os
-          from requests_aws4auth import AWS4Auth
-          import boto3, requests
-          
-          # Get credentials from environment (set by configure-aws-credentials action)
-          session = boto3.Session()
-          credentials = session.get_credentials()
-          
-          # Create AWS Signature V4 auth
-          auth = AWS4Auth(
-              credentials.access_key,
-              credentials.secret_key,
-              os.environ.get('AWS_REGION', 'eu-north-1'),
-              'lambda',
-              session_token=credentials.token
-          )
-          
-          # Parse arguments
-          url = sys.argv[1]
-          method = sys.argv[2]
-          payload = sys.argv[3] if len(sys.argv) > 3 else None
-          
-          # Make signed request
-          headers = {'Content-Type': 'application/json'}
-          response = requests.request(
-              method=method,
-              url=url,
-              auth=auth,
-              headers=headers,
-              data=payload
-          )
-          
-          # Output results
-          print(f"HTTP Status: {response.status_code}")
-          print(f"Headers: {dict(response.headers)}")
-          print(f"Body: {response.text}")
-          
-          # Save for parsing
-          result = {
-              "status_code": response.status_code,
-              "body": response.text,
-              "headers": dict(response.headers)
-          }
-          with open('response.json', 'w') as f:
-              json.dump(result, f, indent=2)
-          
-          # Exit with success/failure
-          sys.exit(0 if response.status_code in [200, 202] else 1)
-          EOF
+          echo "Requesting GitHub OIDC token with audience=${GITHUB_AUDIENCE}..."
+          RESPONSE=$(curl -sSL \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${GITHUB_AUDIENCE}")
+          echo "$RESPONSE" | jq .
+          TOKEN=$(echo "$RESPONSE" | jq -r '.value')
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "Failed to obtain GitHub OIDC token"
+            exit 1
+          fi
+          echo "ACCESS_TOKEN=$TOKEN" >> "$GITHUB_ENV"
 
-      - name: Submit sample test result (write operation)
+      - name: Submit sample test result (write)
         id: submit
+        env:
+          API_URL: ${{ env.API_URL }}
         run: |
-          echo "📤 Submitting test result..."
-          
-          payload='{"buildId":"build-${{ github.run_id }}","testName":"smoke-test-${{ github.run_number }}","outcome":"Passed","durationSeconds":1.5}'
-          
-          python3 sign_request.py \
-            "${FUNCTION_URL}api/testresults/result" \
-            POST \
-            "$payload"
-          
-          status=$(cat response.json | jq -r '.status_code')
-          
-          if [ "$status" != "202" ]; then
-            echo "❌ Expected 202, got $status"
-            cat response.json | jq '.'
+          echo "Submitting test result to ${API_URL}..."
+          payload=$(jq -n \
+            --arg buildId "build-${GITHUB_RUN_ID}" \
+            --arg testName "smoke-test-${GITHUB_RUN_NUMBER}" \
+            --arg outcome "Passed" \
+            --argjson durationSeconds 1.5 \
+            '{buildId:$buildId,testName:$testName,outcome:$outcome,durationSeconds:$durationSeconds}')
+          RESPONSE=$(curl -s -i -X POST \
+            "${API_URL}/api/testresults/result" \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$payload")
+          echo "$RESPONSE"
+          STATUS=$(echo "$RESPONSE" | head -n 1 | awk '{print $2}')
+          if [ "$STATUS" != "202" ]; then
+            echo "Expected 202, got $STATUS"
             exit 1
           fi
-          
-          echo "✅ Submit successful (202 Accepted)"
+          echo "Submit OK (202)"
 
-      - name: Fetch metrics summary (read operation)
+      - name: Fetch metrics summary (read)
         id: summary
+        env:
+          API_URL: ${{ env.API_URL }}
         run: |
-          echo "📊 Fetching summary..."
-          
-          python3 sign_request.py \
-            "${FUNCTION_URL}api/testresults/summary" \
-            GET
-          
-          status=$(cat response.json | jq -r '.status_code')
-          
-          if [ "$status" != "200" ]; then
-            echo "❌ Expected 200, got $status"
-            cat response.json | jq '.'
+          echo "Fetching summary from ${API_URL}..."
+          RESPONSE=$(curl -s -i -X GET \
+            "${API_URL}/api/testresults/summary" \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}")
+          echo "$RESPONSE"
+          STATUS=$(echo "$RESPONSE" | head -n 1 | awk '{print $2}')
+          if [ "$STATUS" != "200" ]; then
+            echo "Expected 200, got $STATUS"
             exit 1
           fi
-          
-          echo "✅ Summary fetch successful (200 OK)"
-          echo ""
-          echo "Summary data:"
-          cat response.json | jq -r '.body' | jq '.'
-
+          echo "Summary OK (200)"
       - name: Clear test data (write operation)
         if: false  # Disabled to preserve demo data
         id: clear
@@ -148,34 +100,17 @@ jobs:
           fi
           
           echo "✅ Clear successful (202 Accepted)"
-
-      - name: Upload test artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: api-test-results
-          path: |
-            sign_request.py
-            response.json
-          retention-days: 7
-
       - name: Test summary
         if: always()
         run: |
           echo "## 🧪 AWS API Smoke Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Function URL:** \`${FUNCTION_URL}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Authentication:** AWS IAM SigV4 (via GitHub OIDC) - No secrets required ✅" >> $GITHUB_STEP_SUMMARY
+          echo "**API URL:** \`${API_URL}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Auth:** GitHub OIDC (issuer: token.actions.githubusercontent.com, audience: metrics-api)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Operation | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Submit Result | ${{ steps.submit.outcome == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Fetch Summary | ${{ steps.summary.outcome == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Clear Data | ${{ steps.clear.outcome == '' && '⏭️ Skipped' || steps.clear.outcome }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔐 Security Features Demonstrated" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Zero secrets stored in GitHub" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Temporary credentials (1-hour expiry)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ IAM role assumption via OIDC federation" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ AWS Signature V4 request signing" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Least-privilege IAM policy" >> $GITHUB_STEP_SUMMARY
+
+
