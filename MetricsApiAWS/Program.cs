@@ -1,6 +1,7 @@
 using MetricsApi.Services;
+using MetricsApi.Authentication;
+using Microsoft.AspNetCore.Authentication;
 
-using Microsoft.AspNetCore.OpenApi;
 // 1. add references
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -23,7 +24,23 @@ var issuer = $"https://cognito-idp.{region}.amazonaws.com/{userPoolId}";
 // end 2.
 
 // 3. Add JWT Bearer authentication
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+builder.Services
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = "Smart";
+        options.DefaultChallengeScheme = "Smart";
+    })
+    .AddPolicyScheme("Smart", "Smart", options =>
+    {
+        options.ForwardDefaultSelector = context =>
+        {
+            var auth = context.Request.Headers["Authorization"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(auth) && auth.StartsWith("AWS4-HMAC-SHA256"))
+                return "SigV4";
+            return JwtBearerDefaults.AuthenticationScheme;
+        };
+    })
+
     .AddJwtBearer(options =>
     {
         options.Authority = issuer;
@@ -51,7 +68,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 return Task.CompletedTask;
             }
         };
-    });
+    })
+    .AddScheme<AuthenticationSchemeOptions, SigV4AuthHandler>("SigV4", _ => { });
 // end 3.
 
 // 4. Add authorization policies based on scopes
@@ -120,41 +138,16 @@ app.UseSwaggerUI(options =>
 app.UseRouting();
 
 app.UseAuthentication(); // see auth here!
+app.UseAuthorization();
 
 // Middleware: enrich principal from Function URL or test header
-app.Use(async (context, next) =>
+app.Use(async (ctx, next) =>
 {
-    // If already authenticated (JWT), skip
-    if (context.User?.Identity?.IsAuthenticated == true)
-    {
-        await next();
-        return;
-    }
-    var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-
-    // Detect AWS SigV4 signed request to Function URL
-    if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("AWS4-HMAC-SHA256"))
-    {
-        // We cannot extract role ARN from the request, so use configured value
-        var roleArn = "arn:aws:iam::140977286959:role/GitHubActionsOIDC-Lambda-Deployer";
-        var claims = new List<Claim>
-        {
-            new Claim("awsRoleArn", roleArn),
-            new Claim("executionSource", "github-actions"),
-            new Claim("authType", "IAM"),
-            new Claim(ClaimTypes.Name, "GitHubActions")
-        };
-
-        var identity = new ClaimsIdentity(claims, "IAM-SigV4");
-        context.User = new ClaimsPrincipal(identity);
-        Console.WriteLine($"✅ SigV4 request authenticated via IAM-SigV4 (IsAuthenticated={identity.IsAuthenticated})");
-    }
-
+    foreach (var h in ctx.Request.Headers)
+        Console.WriteLine($"HDR {h.Key}={h.Value}");
     await next();
 });
 
-
-app.UseAuthorization();
 // end 6.
 
 app.MapControllers();
