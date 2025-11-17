@@ -2,6 +2,7 @@ using MetricsApi.Services;
 using MetricsApi.Authentication;
 using Microsoft.AspNetCore.Authentication;
 
+
 // 1. add references
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -11,14 +12,12 @@ using System.Text.Json;
 
 
 var builder = WebApplication.CreateBuilder(args);
-// Enable Lambda adaptation
-//builder.Services.AddAWSLambdaHosting(Amazon.Lambda.AspNetCoreServer.Hosting.LambdaEventSource.HttpApi);
-builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
+
 // 2. Set up configuration for JWT authentication
 // Get AWS Cognito configuration 
 var region = builder.Configuration["AWS:Region"] ?? builder.Configuration["AWS__Region"];
 var userPoolId = builder.Configuration["AWS:UserPoolId"] ?? builder.Configuration["AWS__UserPoolId"];
-var appClientId = builder.Configuration["AWS:AppClientId"] ?? builder.Configuration["AWS__AppClientId"];
+//var appClientId = builder.Configuration["AWS:AppClientId"] ?? builder.Configuration["AWS__AppClientId"];
 var issuer = $"https://cognito-idp.{region}.amazonaws.com/{userPoolId}";
 
 // end 2.
@@ -34,8 +33,8 @@ builder.Services
     {
         options.ForwardDefaultSelector = context =>
         {
-            var auth = context.Request.Headers["Authorization"].FirstOrDefault();
-            if (!string.IsNullOrEmpty(auth) && auth.StartsWith("AWS4-HMAC-SHA256"))
+            // IAM-authenticated Function URL adds x-amzn-iam-identity
+            if (context.Request.Headers.ContainsKey("x-amzn-iam-identity"))
                 return "SigV4";
             return JwtBearerDefaults.AuthenticationScheme;
         };
@@ -75,18 +74,12 @@ builder.Services
 // 4. Add authorization policies based on scopes
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("ReadAccess", p => p.RequireAssertion(ctx =>
-    {
-        var scopeClaim = ctx.User.FindFirst("scope")?.Value;
-        if (scopeClaim?.Contains("metrics-api/read") == true) return true;
-        return ctx.User.HasClaim(c => c.Type == "awsRoleArn"); // IAM path
-    }));
+    options.AddPolicy("ReadAccess",  p => p.RequireAssertion(ctx =>
+        ctx.User.FindFirst("scope")?.Value?.Contains("metrics-api/read") == true ||
+        ctx.User.HasClaim(c => c.Type == "awsRoleArn")));
     options.AddPolicy("WriteAccess", p => p.RequireAssertion(ctx =>
-    {
-        var scopeClaim = ctx.User.FindFirst("scope")?.Value;
-        if (scopeClaim?.Contains("metrics-api/write") == true) return true;
-        return ctx.User.HasClaim(c => c.Type == "awsRoleArn");
-    }));
+        ctx.User.FindFirst("scope")?.Value?.Contains("metrics-api/write") == true ||
+        ctx.User.HasClaim(c => c.Type == "awsRoleArn")));
 });
 // end 4.
 
@@ -137,19 +130,10 @@ app.UseSwaggerUI(options =>
 //app.UseHttpsRedirection();
 app.UseRouting();
 
-app.UseAuthentication(); // see auth here!
+// 6. Enable authentication and authorization middleware
+app.UseAuthentication(); 
 app.UseAuthorization();
-
-// Middleware: enrich principal from Function URL or test header
-app.Use(async (ctx, next) =>
-{
-    foreach (var h in ctx.Request.Headers)
-        Console.WriteLine($"HDR {h.Key}={h.Value}");
-    await next();
-});
-
 // end 6.
 
 app.MapControllers();
-
 app.Run();

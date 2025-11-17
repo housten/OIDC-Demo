@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using System.Text.Json;
 
 namespace MetricsApi.Authentication;
 
@@ -11,35 +12,48 @@ public sealed class SigV4AuthHandler : AuthenticationHandler<AuthenticationSchem
     public SigV4AuthHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
-        UrlEncoder encoder) 
+        UrlEncoder encoder)
         : base(options, logger, encoder)
     {
     }
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        var authHeader = Request.Headers["Authorization"].FirstOrDefault();
-        
-        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("AWS4-HMAC-SHA256"))
+        var iamHeader = Request.Headers["x-amzn-iam-identity"].FirstOrDefault();
+
+        if (string.IsNullOrEmpty(iamHeader))
             return Task.FromResult(AuthenticateResult.NoResult());
 
-        // Map assumed role (from GitHub OIDC -> STS) to app claims
-        var roleArn = "arn:aws:iam::140977286959:role/GitHubActionsOIDC-Lambda-Deployer";
+        string roleArn   = "unknown";
+        string accountId = "unknown";
+
+        try
+        {
+            using var doc = JsonDocument.Parse(iamHeader);
+            if (doc.RootElement.TryGetProperty("userArn", out var userArn))
+                roleArn = userArn.GetString() ?? roleArn;
+            if (doc.RootElement.TryGetProperty("accountId", out var acct))
+                accountId = acct.GetString() ?? accountId;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to parse x-amzn-iam-identity header.");
+        }
 
         var claims = new[]
         {
             new Claim("awsRoleArn", roleArn),
+            new Claim("awsAccountId", accountId),
             new Claim("executionSource", "github-actions"),
-            new Claim(ClaimTypes.Name, "GitHubActions"),
+            new Claim(ClaimTypes.Name, roleArn),
             new Claim("authType", "IAM-SigV4")
         };
-        
-        var identity = new ClaimsIdentity(claims, Scheme.Name);
+
+        var identity  = new ClaimsIdentity(claims, Scheme.Name);
         var principal = new ClaimsPrincipal(identity);
-        var ticket = new AuthenticationTicket(principal, Scheme.Name);
-        
-        Logger.LogInformation("SigV4 authentication successful for role: {RoleArn}", roleArn);
-        
+        var ticket    = new AuthenticationTicket(principal, Scheme.Name);
+
+        Logger.LogInformation("IAM identity authenticated: {RoleArn}", roleArn);
         return Task.FromResult(AuthenticateResult.Success(ticket));
     }
 }

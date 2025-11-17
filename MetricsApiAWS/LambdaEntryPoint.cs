@@ -7,12 +7,8 @@ public class LambdaEntryPoint : APIGatewayHttpApiV2ProxyFunction
 {
     protected override void Init(IWebHostBuilder builder)
     {
-        builder.UseStartup<EmptyStartup>();
+        // Use your Program.cs bootstrapping
+        builder.UseStartup<StartupShim>();
     }
 }
 
-public class EmptyStartup
-{
-    public void ConfigureServices(IServiceCollection services) { }
-    public void Configure(IApplicationBuilder app, IWebHostEnvironment env) { }
-}
