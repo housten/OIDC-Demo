@@ -53,23 +53,25 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // 4. Add authorization policies based on scopes
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("ReadAccess", policy =>
-        policy.RequireAssertion(context =>
-        {
-            // Allow if Cognito scope present OR IAM principal present
-            var hasScope = context.User.HasClaim("scope", "metrics-api/read");
-            var isIamPrincipal = context.User.HasClaim(c => c.Type == "iam-principal");
-            return hasScope || isIamPrincipal;
-        }));
-
-    options.AddPolicy("WriteAccess", policy =>
-        policy.RequireAssertion(context =>
-        {
-            // Allow if Cognito scope present OR IAM principal present
-            var hasScope = context.User.HasClaim("scope", "metrics-api/write");
-            var isIamPrincipal = context.User.HasClaim(c => c.Type == "iam-principal");
-            return hasScope || isIamPrincipal;
-        }));
+    options.AddPolicy("ReadAccess", p => p.RequireAssertion(ctx =>
+    {
+        // Check IAM principal (Function URL)
+        if (ctx.User.HasClaim(c => c.Type == "iam-principal")) return true;
+        
+        // Check JWT scope claim (space-separated string)
+        var scopeClaim = ctx.User.FindFirst("scope")?.Value;
+        return scopeClaim != null && scopeClaim.Contains("metrics-api/read");
+    }));
+    
+    options.AddPolicy("WriteAccess", p => p.RequireAssertion(ctx =>
+    {
+        // Check IAM principal (Function URL)
+        if (ctx.User.HasClaim(c => c.Type == "iam-principal")) return true;
+        
+        // Check JWT scope claim (space-separated string)
+        var scopeClaim = ctx.User.FindFirst("scope")?.Value;
+        return scopeClaim != null && scopeClaim.Contains("metrics-api/write");
+    }));
 });
 // end 4.
 
