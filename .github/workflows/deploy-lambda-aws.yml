@@ -15,8 +15,8 @@ permissions:
 env:
   REGION: eu-north-1
   FUNCTION_NAME: metrics-api-lambda
-  USER_POOL_ID: eu-north-1_8iRyPnvr7
-  APP_CLIENT_ID: 7mah0vs17e0t52rug0fi8tbd2g
+  #USER_POOL_ID: eu-north-1_8iRyPnvr7
+  #APP_CLIENT_ID: 7mah0vs17e0t52rug0fi8tbd2g
 
 jobs:
   deploy:
@@ -53,6 +53,7 @@ jobs:
             --region "${REGION}"
 
       - name: Update Lambda environment (Cognito settings)
+        if: false  # Temporarily disabled to avoid conflicts
         run: |
           aws lambda update-function-configuration \
             --function-name "${FUNCTION_NAME}" \
