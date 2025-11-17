@@ -4,19 +4,21 @@ using Amazon.Lambda.AspNetCoreServer.Hosting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
+using System.Text.Json;
 // end 1.
 
 
 var builder = WebApplication.CreateBuilder(args);
 // Enable Lambda adaptation
 //builder.Services.AddAWSLambdaHosting(Amazon.Lambda.AspNetCoreServer.Hosting.LambdaEventSource.HttpApi);
-builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
+builder.Services.AddAWSLambdaHosting(Amazon.Lambda.AspNetCoreServer.Hosting.LambdaEventSource.HttpApi);
 // 2. Set up configuration for JWT authentication
-// Get AWS Cognito configuration
-var region = builder.Configuration["AWS:Region"];
-var userPoolId = builder.Configuration["AWS:UserPoolId"];
-var appClientId = builder.Configuration["AWS:AppClientId"];
+// Get AWS Cognito configuration 
+var region = builder.Configuration["AWS:Region"] ?? builder.Configuration["AWS__Region"];
+var userPoolId = builder.Configuration["AWS:UserPoolId"] ?? builder.Configuration["AWS__UserPoolId"];
+var appClientId = builder.Configuration["AWS:AppClientId"] ?? builder.Configuration["AWS__AppClientId"];
 var issuer = $"https://cognito-idp.{region}.amazonaws.com/{userPoolId}";
+
 // end 2.
 
 // 3. Add JWT Bearer authentication
@@ -129,41 +131,44 @@ app.Use(async (context, next) =>
     // Function URL supplies this header (JSON)
     var lambdaCtxHeader = context.Request.Headers["x-amzn-lambda-request-context"].FirstOrDefault();
 
-    // Synthetic header from direct invoke smoke test (optional)
-    var isGithubSynthetic = context.Request.Headers.ContainsKey("X-GitHub-Actions");
 
-    if (!string.IsNullOrEmpty(lambdaCtxHeader) || isGithubSynthetic)
+    if (!string.IsNullOrEmpty(lambdaCtxHeader))
     {
         string roleArn = "arn:aws:iam::140977286959:role/GitHubActionsOIDC-Lambda-Deployer";
         string accountId = "140977286959";
+        string executionSource = "github-actions";
 
-        // Try to parse real context (ignore errors)
         try
         {
-            // Example header is JSON; extract fields if present
+            // Parse Lambda context (JSON)
             using var doc = JsonDocument.Parse(lambdaCtxHeader);
+            
             if (doc.RootElement.TryGetProperty("accountId", out var acct))
                 accountId = acct.GetString() ?? accountId;
-            if (doc.RootElement.TryGetProperty("requestId", out var rq))
-            {
-                // you can attach requestId if helpful
-            }
-            // invokedFunctionArn present?
+            
             if (doc.RootElement.TryGetProperty("invokedFunctionArn", out var fnArn))
-                roleArn = fnArn.GetString() ?? roleArn;
+            {
+                var arn = fnArn.GetString();
+                // Extract account and region from function ARN if needed
+                Console.WriteLine($"Invoked via Function ARN: {arn}");
+            }
         }
-        catch { /* ignore */ }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to parse Lambda context: {ex.Message}");
+        }
 
         var claims = new List<Claim>
         {
             new Claim("awsRoleArn", roleArn),
             new Claim("awsAccountId", accountId),
-            new Claim("executionSource", "github-actions"),
-            new Claim("iam-principal", "true")
+            new Claim("executionSource", executionSource),
+            new Claim("authType", "IAM")
         };
+        
         context.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "IAM"));
+        Console.WriteLine($"✅ Request authenticated via IAM (Role: {roleArn})");
     }
-
     await next();
 });
 

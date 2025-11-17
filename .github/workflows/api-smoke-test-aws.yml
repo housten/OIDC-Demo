@@ -14,7 +14,7 @@ on:
 env:
   REGION: eu-north-1
   FUNCTION_NAME: metrics-api-lambda
-  FUNCTION_URL: https://ginqh6vfhuokxidskdt2df7xxq0cqpjq.lambda-url.eu-north-1.on.aws
+  FUNCTION_URL: https://ginqh6vfhuokxidskdt2df7xxq0cqpjq.lambda-url.eu-north-1.on.aws/
 
 jobs:
   test-api:
@@ -29,92 +29,125 @@ jobs:
       - name: Verify AWS identity
         run: aws sts get-caller-identity
 
-     # ...existing code...
+      - name: Install dependencies
+        run: |
+          pip install boto3 requests requests-aws4auth
+
+      - name: Create signing helper script
+        run: |
+          cat > sign_request.py <<'EOF'
+          import sys, json, os
+          from requests_aws4auth import AWS4Auth
+          import boto3, requests
+          
+          # Get credentials from environment (set by configure-aws-credentials action)
+          session = boto3.Session()
+          credentials = session.get_credentials()
+          
+          # Create AWS Signature V4 auth
+          auth = AWS4Auth(
+              credentials.access_key,
+              credentials.secret_key,
+              os.environ.get('AWS_REGION', 'eu-north-1'),
+              'lambda',
+              session_token=credentials.token
+          )
+          
+          # Parse arguments
+          url = sys.argv[1]
+          method = sys.argv[2]
+          payload = sys.argv[3] if len(sys.argv) > 3 else None
+          
+          # Make signed request
+          headers = {'Content-Type': 'application/json'}
+          response = requests.request(
+              method=method,
+              url=url,
+              auth=auth,
+              headers=headers,
+              data=payload
+          )
+          
+          # Output results
+          print(f"HTTP Status: {response.status_code}")
+          print(f"Headers: {dict(response.headers)}")
+          print(f"Body: {response.text}")
+          
+          # Save for parsing
+          result = {
+              "status_code": response.status_code,
+              "body": response.text,
+              "headers": dict(response.headers)
+          }
+          with open('response.json', 'w') as f:
+              json.dump(result, f, indent=2)
+          
+          # Exit with success/failure
+          sys.exit(0 if response.status_code in [200, 202] else 1)
+          EOF
+
       - name: Submit sample test result (write operation)
         id: submit
         run: |
-              pip install awscurl
-              payload='{"buildId":"build-${{ github.run_id }}","testName":"smoke-test-${{ github.run_number }}","outcome":"Passed","durationSeconds":1.5}'
-              http_status=$(awscurl --service lambda --region ${{ env.REGION }} \
-                 -X POST "${FUNCTION_URL}api/testresults/result" \
-                 -H "Content-Type: application/json" \
-                 -d "$payload" -w "%{http_code}" -o response.json)
-              cat response.json
-              if [ "$http_status" != "202" ]; then
-                echo "❌ Expected 202 got $http_status"
-                exit 1
-              fi
-              echo "✅ Submit successful"
-      # ...summary step similar...
-      - name: Fetch metrics summary (read operation)
-        id: summary
-        run: |
-          cat > event.json <<EOF
-          {
-            "version": "2.0",
-            "routeKey": "GET /api/testresults/summary",
-            "rawPath": "/api/testresults/summary",
-            "requestContext": {
-              "http": {
-                "method": "GET",
-                "path": "/api/testresults/summary"
-              },
-              "invokedFunctionArn": "arn:aws:lambda:${{ env.REGION }}:140977286959:function:${{ env.FUNCTION_NAME }}"
-            }
-          }
-          EOF
+          echo "📤 Submitting test result..."
           
-          aws lambda invoke \
-            --function-name ${{ env.FUNCTION_NAME }} \
-            --payload file://event.json \
-            --cli-binary-format raw-in-base64-out \
-            summary.json
+          payload='{"buildId":"build-${{ github.run_id }}","testName":"smoke-test-${{ github.run_number }}","outcome":"Passed","durationSeconds":1.5}'
           
-          echo "Summary response:"
-          cat summary.json | jq '.'
+          python3 sign_request.py \
+            "${FUNCTION_URL}api/testresults/result" \
+            POST \
+            "$payload"
           
-          status_code=$(cat summary.json | jq -r '.statusCode // empty')
+          status=$(cat response.json | jq -r '.status_code')
           
-          if [ "$status_code" != "200" ]; then
-            echo "❌ Expected HTTP 200, got $status_code"
+          if [ "$status" != "202" ]; then
+            echo "❌ Expected 202, got $status"
+            cat response.json | jq '.'
             exit 1
           fi
           
-          echo "✅ Summary fetch successful"
+          echo "✅ Submit successful (202 Accepted)"
+
+      - name: Fetch metrics summary (read operation)
+        id: summary
+        run: |
+          echo "📊 Fetching summary..."
+          
+          python3 sign_request.py \
+            "${FUNCTION_URL}api/testresults/summary" \
+            GET
+          
+          status=$(cat response.json | jq -r '.status_code')
+          
+          if [ "$status" != "200" ]; then
+            echo "❌ Expected 200, got $status"
+            cat response.json | jq '.'
+            exit 1
+          fi
+          
+          echo "✅ Summary fetch successful (200 OK)"
+          echo ""
+          echo "Summary data:"
+          cat response.json | jq -r '.body' | jq '.'
 
       - name: Clear test data (write operation)
-        if: false  # Disabled to preserve data
+        if: false  # Disabled to preserve demo data
         id: clear
         run: |
-          cat > event.json <<EOF
-          {
-            "version": "2.0",
-            "routeKey": "POST /api/testresults/clear",
-            "rawPath": "/api/testresults/clear",
-            "requestContext": {
-              "http": {
-                "method": "POST",
-                "path": "/api/testresults/clear"
-              },
-              "invokedFunctionArn": "arn:aws:lambda:${{ env.REGION }}:140977286959:function:${{ env.FUNCTION_NAME }}"
-            }
-          }
-          EOF
+          echo "🗑️ Clearing test data..."
           
-          aws lambda invoke \
-            --function-name ${{ env.FUNCTION_NAME }} \
-            --payload file://event.json \
-            --cli-binary-format raw-in-base64-out \
-            clear.json
+          python3 sign_request.py \
+            "${FUNCTION_URL}api/testresults/clear" \
+            POST
           
-          status_code=$(cat clear.json | jq -r '.statusCode // empty')
+          status=$(cat response.json | jq -r '.status_code')
           
-          if [ "$status_code" != "202" ]; then
+          if [ "$status" != "202" ]; then
             echo "❌ Clear failed"
             exit 1
           fi
           
-          echo "✅ Clear successful"
+          echo "✅ Clear successful (202 Accepted)"
 
       - name: Upload test artifacts
         if: always()
@@ -122,10 +155,8 @@ jobs:
         with:
           name: api-test-results
           path: |
-            event.json
+            sign_request.py
             response.json
-            summary.json
-            clear.json
           retention-days: 7
 
       - name: Test summary
@@ -133,11 +164,18 @@ jobs:
         run: |
           echo "## 🧪 AWS API Smoke Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Function:** \`${{ env.FUNCTION_NAME }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Authentication:** AWS IAM (Direct Invoke) - No secrets required ✅" >> $GITHUB_STEP_SUMMARY
+          echo "**Function URL:** \`${FUNCTION_URL}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Authentication:** AWS IAM SigV4 (via GitHub OIDC) - No secrets required ✅" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Operation | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Submit Result | ${{ steps.submit.outcome }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Fetch Summary | ${{ steps.summary.outcome }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Clear Data | ${{ steps.clear.outcome == '' && 'skipped' || steps.clear.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Submit Result | ${{ steps.submit.outcome == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Fetch Summary | ${{ steps.summary.outcome == 'success' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Clear Data | ${{ steps.clear.outcome == '' && '⏭️ Skipped' || steps.clear.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔐 Security Features Demonstrated" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Zero secrets stored in GitHub" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Temporary credentials (1-hour expiry)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ IAM role assumption via OIDC federation" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ AWS Signature V4 request signing" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Least-privilege IAM policy" >> $GITHUB_STEP_SUMMARY
