@@ -1,5 +1,5 @@
 using MetricsApi.Services;
-using MetricsApi.Authentication;
+
 using Microsoft.AspNetCore.Authentication;
 
 
@@ -13,7 +13,7 @@ using Amazon.Lambda.AspNetCoreServer.Hosting; // <== important
 
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
+
 // 2. Set up configuration for JWT authentication
 // Get AWS Cognito configuration 
 var region = builder.Configuration["AWS:Region"] ?? builder.Configuration["AWS__Region"];
@@ -25,22 +25,7 @@ var issuer = $"https://cognito-idp.{region}.amazonaws.com/{userPoolId}";
 
 // 3. Add JWT Bearer authentication
 builder.Services
-    .AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme = "Smart";
-        options.DefaultChallengeScheme = "Smart";
-    })
-    .AddPolicyScheme("Smart", "Smart", options =>
-    {
-        options.ForwardDefaultSelector = context =>
-        {
-            // IAM-authenticated Function URL adds x-amzn-iam-identity
-            if (context.Request.Headers.ContainsKey("x-amzn-iam-identity"))
-                return "SigV4";
-            return JwtBearerDefaults.AuthenticationScheme;
-        };
-    })
-
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.Authority = issuer;
@@ -68,19 +53,18 @@ builder.Services
                 return Task.CompletedTask;
             }
         };
-    })
-    .AddScheme<AuthenticationSchemeOptions, SigV4AuthHandler>("SigV4", _ => { });
+    });
+
 // end 3.
 
 // 4. Add authorization policies based on scopes
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("ReadAccess",  p => p.RequireAssertion(ctx =>
-        ctx.User.FindFirst("scope")?.Value?.Contains("metrics-api/read") == true ||
-        ctx.User.HasClaim(c => c.Type == "awsRoleArn")));
+        ctx.User.FindFirst("scope")?.Value?.Contains("metrics-api/read") == true));
+
     options.AddPolicy("WriteAccess", p => p.RequireAssertion(ctx =>
-        ctx.User.FindFirst("scope")?.Value?.Contains("metrics-api/write") == true ||
-        ctx.User.HasClaim(c => c.Type == "awsRoleArn")));
+        ctx.User.FindFirst("scope")?.Value?.Contains("metrics-api/write") == true));
 });
 // end 4.
 
