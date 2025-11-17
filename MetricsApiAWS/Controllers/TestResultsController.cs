@@ -2,7 +2,6 @@ using System;
 using MetricsApi.Models;
 using MetricsApi.Services;
 
-using Microsoft.Identity.Web.Resource;
 // 1. add references
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

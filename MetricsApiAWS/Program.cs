@@ -1,5 +1,6 @@
 using MetricsApi.Services;
-using Amazon.Lambda.AspNetCoreServer.Hosting;
+
+using Microsoft.AspNetCore.OpenApi;
 // 1. add references
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -11,7 +12,7 @@ using System.Text.Json;
 var builder = WebApplication.CreateBuilder(args);
 // Enable Lambda adaptation
 //builder.Services.AddAWSLambdaHosting(Amazon.Lambda.AspNetCoreServer.Hosting.LambdaEventSource.HttpApi);
-builder.Services.AddAWSLambdaHosting(Amazon.Lambda.AspNetCoreServer.Hosting.LambdaEventSource.HttpApi);
+builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
 // 2. Set up configuration for JWT authentication
 // Get AWS Cognito configuration 
 var region = builder.Configuration["AWS:Region"] ?? builder.Configuration["AWS__Region"];
