@@ -1,0 +1,84 @@
+name: Deploy Lambda (OIDC)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'MetricsApiAWS/**'
+      - '.github/workflows/deploy-lambda-aws.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  REGION: eu-north-1
+  FUNCTION_NAME: metrics-api-lambda
+  USER_POOL_ID: eu-north-1_8iRyPnvr7
+  APP_CLIENT_ID: 7mah0vs17e0t52rug0fi8tbd2g
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::140977286959:role/GitHubActionsOIDC-Lambda-Deployer
+          aws-region: ${{ env.REGION }}
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+      - name: Build
+        run: |
+          dotnet restore MetricsApiAWS/MetricsApi.csproj
+          dotnet publish MetricsApiAWS/MetricsApi.csproj -c Release -o publish
+
+      - name: Package
+        run: |
+          cd publish
+          zip -r ../function.zip .
+          cd ..
+
+      - name: Update Lambda code
+        run: |
+          aws lambda update-function-code \
+            --function-name "${FUNCTION_NAME}" \
+            --zip-file fileb://function.zip \
+            --region "${REGION}"
+
+      - name: Update Lambda environment (Cognito settings)
+        run: |
+          aws lambda update-function-configuration \
+            --function-name "${FUNCTION_NAME}" \
+            --environment "Variables={AWS__Region=${REGION},AWS__UserPoolId=${USER_POOL_ID},AWS__AppClientId=${APP_CLIENT_ID}}" \
+            --region "${REGION}"
+
+      - name: Wait for Lambda to be ready
+        run: |
+          echo "Waiting for Lambda function to update..."
+          aws lambda wait function-updated --function-name "${FUNCTION_NAME}" --region "${REGION}"
+          echo "✅ Lambda function updated successfully"
+
+      - name: Cleanup artifacts
+        if: always()
+        run: rm -f function.zip
+
+      - name: Deployment summary
+        run: |
+          echo "## 🚀 Lambda Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Function:** \`${FUNCTION_NAME}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** \`${REGION}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Authentication:** AWS IAM via OIDC (secretless) ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**API Endpoints:**" >> $GITHUB_STEP_SUMMARY
+          echo "- API Gateway (Cognito JWT): \`https://k6opu4nrel.execute-api.eu-north-1.amazonaws.com\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Function URL (IAM): \`https://ginqh6vfhuokxidskdt2df7xxq0cqpjq.lambda-url.eu-north-1.on.aws\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "ℹ️ Smoke tests will run automatically via the **AWS API Smoke Test** workflow" >> $GITHUB_STEP_SUMMARY

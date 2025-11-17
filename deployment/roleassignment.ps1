@@ -1,0 +1,1 @@
+az role assignment create --assignee $spId --role "WebSite Contributor" --scope /subscriptions/1e903f3b-552d-481f-aafc-479a3bb40e7e/resourceGroups/rg-metrics-OIDC-demo

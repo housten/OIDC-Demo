@@ -1,0 +1,282 @@
+{
+    "ResourceServer": {
+        "UserPoolId": "eu-north-1_8iRyPnvr7",
+        "Identifier": "metrics-api",
+        "Name": "MetricsApi",
+        "Scopes": [
+            {
+                "ScopeName": "read",
+                "ScopeDescription": "Read test results"
+            },
+            {
+                "ScopeName": "write",
+                "ScopeDescription": "Write and delete test results"
+            }
+        ]
+    }
+}
+
+{
+    "UserPools": [
+        {
+            "Id": "eu-north-1_8iRyPnvr7",
+            "Name": "User pool - afhqqw",
+            "LambdaConfig": {},
+            "LastModifiedDate": "2025-11-13T18:08:37.459000+01:00",
+            "CreationDate": "2025-11-13T18:08:37.459000+01:00"
+        }
+    ]
+}
+
+{
+    "ResourceServers": [
+        {
+            "UserPoolId": "eu-north-1_8iRyPnvr7",
+            "Identifier": "default-m2m-resource-server-yin3r",
+            "Name": "Default M2M Resource Server - yin3r",
+            "Scopes": [
+                {
+                    "ScopeName": "read",
+                    "ScopeDescription": "An example scope created by Amazon Cognito quick start"
+                }
+            ]
+        },
+        {
+            "UserPoolId": "eu-north-1_8iRyPnvr7",
+            "Identifier": "metrics-api",
+            "Name": "MetricsApi",
+            "Scopes": [
+                {
+                    "ScopeName": "read",
+                    "ScopeDescription": "Read test results"
+                },
+                {
+                    "ScopeName": "write",
+                    "ScopeDescription": "Write and delete test results"
+                }
+            ]
+        }
+    ]
+}
+{
+    "UserPoolClients": [
+        {
+            "ClientId": "7mah0vs17e0t52rug0fi8tbd2g",
+            "UserPoolId": "eu-north-1_8iRyPnvr7",
+            "ClientName": "MetricsApiUserPool"
+        }
+    ]
+}
+
+{
+    "UserPoolClient": {
+        "UserPoolId": "eu-north-1_8iRyPnvr7",
+        "ClientName": "MetricsApiUserPool",
+        "ClientId": "7mah0vs17e0t52rug0fi8tbd2g",
+        "ClientSecret": "10kqclcs9n0ea74nrcrlpmo326cgndv220068nmqevspslme0npg",
+        "LastModifiedDate": "2025-11-13T18:08:38.195000+01:00",
+        "CreationDate": "2025-11-13T18:08:38.195000+01:00",
+        "RefreshTokenValidity": 5,
+        "AccessTokenValidity": 60,
+        "IdTokenValidity": 60,
+        "TokenValidityUnits": {
+            "AccessToken": "minutes",
+            "IdToken": "minutes",
+            "RefreshToken": "days"
+        },
+        "ExplicitAuthFlows": [
+            "ALLOW_REFRESH_TOKEN_AUTH"
+        ],
+        "SupportedIdentityProviders": [
+            "COGNITO"
+        ],
+        "AllowedOAuthFlows": [
+            "client_credentials"
+        ],
+        "AllowedOAuthScopes": [
+            "default-m2m-resource-server-yin3r/read"
+        ],
+        "AllowedOAuthFlowsUserPoolClient": true,
+        "EnableTokenRevocation": true,
+        "EnablePropagateAdditionalUserContextData": false,
+        "AuthSessionValidity": 3
+    }
+}
+
+post update-user-pool-client
+{
+    "UserPoolClient": {
+        "UserPoolId": "eu-north-1_8iRyPnvr7",
+        "ClientName": "MetricsApiUserPool",
+        "ClientId": "7mah0vs17e0t52rug0fi8tbd2g",
+        "ClientSecret": "10kqclcs9n0ea74nrcrlpmo326cgndv220068nmqevspslme0npg",
+        "LastModifiedDate": "2025-11-13T19:14:20.179000+01:00",
+        "CreationDate": "2025-11-13T18:08:38.195000+01:00",
+        "RefreshTokenValidity": 5,
+        "AccessTokenValidity": 60,
+        "IdTokenValidity": 60,
+        "TokenValidityUnits": {
+            "AccessToken": "minutes",
+            "IdToken": "minutes",
+            "RefreshToken": "days"
+        },
+        "SupportedIdentityProviders": [
+            "COGNITO"
+        ],
+        "AllowedOAuthFlows": [
+            "client_credentials"
+        ],
+        "AllowedOAuthScopes": [
+            "metrics-api/read",
+            "metrics-api/write"
+        ],
+        "AllowedOAuthFlowsUserPoolClient": true,
+        "EnableTokenRevocation": true,
+        "EnablePropagateAdditionalUserContextData": false,
+        "AuthSessionValidity": 3
+    }
+}
+
+10kqclcs9n0ea74nrcrlpmo326cgndv220068nmqevspslme0npg
+
+READ
+{"access_token":"eyJraWQiOiJrZzhYREpsVXBcL25OQXQyWmNRSUZOblhDODRQTnh6MEF3N0V1NWx0SW9xOD0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiI3bWFoMHZzMTdlMHQ1MnJ1ZzBmaTh0YmQyZyIsInRva2VuX3VzZSI6ImFjY2VzcyIsInNjb3BlIjoibWV0cmljcy1hcGlcL3JlYWQiLCJhdXRoX3RpbWUiOjE3NjMwNTg4NzMsImlzcyI6Imh0dHBzOlwvXC9jb2duaXRvLWlkcC5ldS1ub3J0aC0xLmFtYXpvbmF3cy5jb21cL2V1LW5vcnRoLTFfOGlSeVBudnI3IiwiZXhwIjoxNzYzMDYyNDczLCJpYXQiOjE3NjMwNTg4NzMsInZlcnNpb24iOjIsImp0aSI6ImExYTc1ZmIyLTIzYWQtNGYyMy04ZTM3LWE0MTNiYjc2MGU2NCIsImNsaWVudF9pZCI6IjdtYWgwdnMxN2UwdDUycnVnMGZpOHRiZDJnIn0.ATrPmfrqwwKIUY9OqkU5vQUZ-vRSDv2LNKAVC7dA81NhQnLnoniXoqyFFPA6eAbXy4YoREMT7kqEn6zrzGX6sr0XYfkbhRXMQsZmjawiEJaX2Bh-OUk5G-Qc4ds7JbEMRBPjMPDUYEs1wMrqpZBYBaEgkCeNSj9ysNEi5ZFShEF93S68oJNQoTE09Y0r-KB8t7kqk_f2jPxot_AOQWgbeJYQ3K9lrNngmhTqVlnB_B_7QQJDmt8zgBmQs0QpEuMO7h_I5fHCqEAnx9D6PSrlcSORVJIcwKb5gHz32JKLQ1vBaXKrp91KyQ0E2P7673K2Zhs7-lue285UBo1Hq08AIw","expires_in":3600,"token_type":"Bearer"}
+WRITE
+{"access_token":"eyJraWQiOiJrZzhYREpsVXBcL25OQXQyWmNRSUZOblhDODRQTnh6MEF3N0V1NWx0SW9xOD0iLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiI3bWFoMHZzMTdlMHQ1MnJ1ZzBmaTh0YmQyZyIsInRva2VuX3VzZSI6ImFjY2VzcyIsInNjb3BlIjoibWV0cmljcy1hcGlcL3dyaXRlIiwiYXV0aF90aW1lIjoxNzYzMDU4OTUzLCJpc3MiOiJodHRwczpcL1wvY29nbml0by1pZHAuZXUtbm9ydGgtMS5hbWF6b25hd3MuY29tXC9ldS1ub3J0aC0xXzhpUnlQbnZyNyIsImV4cCI6MTc2MzA2MjU1MywiaWF0IjoxNzYzMDU4OTUzLCJ2ZXJzaW9uIjoyLCJqdGkiOiJhNTJmMWVjMS0zZTA5LTRkZWItYmZjNS02NmJkNWQ0NjU5ZWMiLCJjbGllbnRfaWQiOiI3bWFoMHZzMTdlMHQ1MnJ1ZzBmaTh0YmQyZyJ9.qIxROpXJieOnyzwZR85g8F1gypVndO2swIy6UtVx2IH1WNpSJPIv9Gua3nCnCJiijtgIUPKpz7J35AkKL3jR5HaGLHB6i1-rL4qOM-QdiSYNrRG68MRSENtIJnh29S0jfhincGCDXxwsgLN7xbI858XfJBk3rLJ6pfVVux4JDm86WIoM06z84GThn2mojSqmgzP3JOl2QW7WDrjHBrakTdsfecpZTysjfnsJKZA9osmnoD2jZBtXvgyCkO_7pdICCFED53lNuKPXD-2X67Q05Ami0s07tycnppTySTVV0Mjj5WQCA7OgfOPtATpR8k2CVxQ2Cb3ox2x6c-MRZbgArw","expires_in":3600,"token_type":"Bearer"}
+
+
+{
+    "FunctionName": "metrics-api-lambda",
+    "FunctionArn": "arn:aws:lambda:eu-north-1:140977286959:function:metrics-api-lambda",
+    "Role": "arn:aws:iam::140977286959:role/LambdaExecutionRole",
+    "CodeSize": 0,
+    "Description": "",
+    "Timeout": 3,
+    "MemorySize": 128,
+    "LastModified": "2025-11-16T08:59:28.137+0000",
+    "CodeSha256": "2d9817bb46082ae6a83537d86942e791c4f5bf7e6ca05d2a1e415e936bd3cdd8",
+    "Version": "$LATEST",
+    "TracingConfig": {
+        "Mode": "PassThrough"
+    },
+    "RevisionId": "7b3e6d25-18bb-4dc2-8c4b-ec7ddd866742",
+    "State": "Pending",
+    "StateReason": "The function is being created.",
+    "StateReasonCode": "Creating",
+    "PackageType": "Image",
+    "Architectures": [
+        "x86_64"
+    ],
+    "EphemeralStorage": {
+        "Size": 512
+    },
+    "SnapStart": {
+        "ApplyOn": "None",
+        "OptimizationStatus": "Off"
+    },
+    "LoggingConfig": {
+        "LogFormat": "Text",
+        "LogGroup": "/aws/lambda/metrics-api-lambda"
+    }
+}
+
+{
+    "ApiEndpoint": "https://k6opu4nrel.execute-api.eu-north-1.amazonaws.com",
+    "ApiId": "k6opu4nrel",
+    "ApiKeySelectionExpression": "$request.header.x-api-key",
+    "CreatedDate": "2025-11-16T09:07:27+00:00",
+    "DisableExecuteApiEndpoint": false,
+    "IpAddressType": "ipv4",
+    "Name": "metrics-api-gateway",
+    "ProtocolType": "HTTP",
+    "RouteSelectionExpression": "$request.method $request.path"
+}
+
+
+{
+    "FunctionName": "metrics-api-lambda",
+    "FunctionArn": "arn:aws:lambda:eu-north-1:140977286959:function:metrics-api-lambda",
+    "Runtime": "dotnet8",
+    "Role": "arn:aws:iam::140977286959:role/LambdaExecutionRole",
+    "Handler": "MetricsApiAWS::MetricsApiAWS.LambdaEntryPoint::FunctionHandlerAsync",
+    "CodeSize": 3242000,
+    "Description": "",
+    "Timeout": 10,
+    "MemorySize": 512,
+    "LastModified": "2025-11-16T10:48:14.868+0000",
+    "CodeSha256": "0IjTyz1easY4zYa39KFVjY3hmTBwXKB+eWBFuBB5l5E=",
+    "Version": "$LATEST",
+    "TracingConfig": {
+        "Mode": "PassThrough"
+    },
+    "RevisionId": "39bb88e2-8364-4939-b18c-e4f551142f99",
+    "State": "Pending",
+    "StateReason": "The function is being created.",
+    "StateReasonCode": "Creating",
+    "PackageType": "Zip",
+    "Architectures": [
+        "x86_64"
+    ],
+    "EphemeralStorage": {
+        "Size": 512
+    },
+    "SnapStart": {
+        "ApplyOn": "None",
+        "OptimizationStatus": "Off"
+    },
+    "RuntimeVersionConfig": {
+        "RuntimeVersionArn": "arn:aws:lambda:eu-north-1::runtime:89ed05593573e2ad56cb9e9bdc1a198a3b8521ab20195d2190dc4abfe3306d4a"
+    },
+    "LoggingConfig": {
+        "LogFormat": "Text",
+        "LogGroup": "/aws/lambda/metrics-api-lambda"
+    }
+}
+
+
+aws lambda update-function-configuration --function-name metrics-api-lambda --environment "Variables={AWS__Region=eu-north-1,AWS__UserPoolId=eu-north-1_8iRyPnvr7,AWS__AppClientId=7mah0vs17e0t52rug0fi8tbd2g}" --region eu-north-1
+{
+    "FunctionName": "metrics-api-lambda",
+    "FunctionArn": "arn:aws:lambda:eu-north-1:140977286959:function:metrics-api-lambda",
+    "Runtime": "dotnet8",
+    "Role": "arn:aws:iam::140977286959:role/LambdaExecutionRole",
+    "Handler": "MetricsApiAWS",
+    "CodeSize": 3374834,
+    "Description": "",
+    "Timeout": 10,
+    "MemorySize": 512,
+    "LastModified": "2025-11-16T11:53:29.959+0000",
+    "CodeSha256": "GypBqLhcMWbj+g3M8da4SmbrgX8mqVBYL/B0k1LqqnU=",
+    "Version": "$LATEST",
+    "Environment": {
+        "Variables": {
+            "AWS__Region": "eu-north-1",
+            "AWS__UserPoolId": "eu-north-1_8iRyPnvr7"
+        }
+    },
+    "TracingConfig": {
+        "Mode": "PassThrough"
+    },
+    "RevisionId": "9f65a9ee-70f2-44f9-bb77-03198bcce759",
+    "State": "Pending",
+    "StateReason": "The function is being created.",
+    "StateReasonCode": "Creating",
+    "PackageType": "Zip",
+    "Architectures": [
+        "x86_64"
+    ],
+    "EphemeralStorage": {
+        "Size": 512
+    },
+    "SnapStart": {
+        "ApplyOn": "None",
+        "OptimizationStatus": "Off"
+    },
+    "RuntimeVersionConfig": {
+        "RuntimeVersionArn": "arn:aws:lambda:eu-north-1::runtime:89ed05593573e2ad56cb9e9bdc1a198a3b8521ab20195d2190dc4abfe3306d4a"
+    },
+    "LoggingConfig": {
+        "LogFormat": "Text",
+        "LogGroup": "/aws/lambda/metrics-api-lambda"
+    }
+}
