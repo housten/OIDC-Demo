@@ -13,7 +13,8 @@ using Amazon.Lambda.AspNetCoreServer.Hosting; // <== important
 
 
 var builder = WebApplication.CreateBuilder(args);
-
+// Use Lambda hosting for HTTP API / Function URL
+builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
 // 2. Set up configuration for JWT authentication
 // Get AWS Cognito configuration 
 var region = builder.Configuration["AWS:Region"] ?? builder.Configuration["AWS__Region"];
@@ -111,7 +112,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
-
+//app.UseLambdaServer();  
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
