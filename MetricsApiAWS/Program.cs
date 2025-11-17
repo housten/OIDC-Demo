@@ -164,11 +164,15 @@ app.Use(async (context, next) =>
             new Claim("awsRoleArn", roleArn),
             new Claim("awsAccountId", accountId),
             new Claim("executionSource", executionSource),
-            new Claim("authType", "IAM")
+            new Claim("authType", "IAM"),
+            new Claim(ClaimTypes.Name, "GitHubActions")  // Add name claim
         };
-        
-        context.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "IAM"));
-        Console.WriteLine($"✅ Request authenticated via IAM (Role: {roleArn})");
+                // KEY FIX: Mark identity as authenticated
+        var identity = new ClaimsIdentity(claims, authenticationType: "IAM");
+        Console.WriteLine($"Identity IsAuthenticated: {identity.IsAuthenticated}"); // Should be true
+        context.User = new ClaimsPrincipal(identity);
+        Console.WriteLine($"✅ Request authenticated via IAM (Role: {roleArn}, IsAuthenticated: {identity.IsAuthenticated})");
+
     }
     await next();
 });
