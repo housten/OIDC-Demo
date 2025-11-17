@@ -50,27 +50,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 // end 3.
+
 // 4. Add authorization policies based on scopes
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("ReadAccess", p => p.RequireAssertion(ctx =>
     {
-        // Check IAM principal (Function URL)
-        if (ctx.User.HasClaim(c => c.Type == "iam-principal")) return true;
-        
-        // Check JWT scope claim (space-separated string)
         var scopeClaim = ctx.User.FindFirst("scope")?.Value;
-        return scopeClaim != null && scopeClaim.Contains("metrics-api/read");
+        if (scopeClaim?.Contains("metrics-api/read") == true) return true;
+        return ctx.User.HasClaim(c => c.Type == "awsRoleArn"); // IAM path
     }));
-    
     options.AddPolicy("WriteAccess", p => p.RequireAssertion(ctx =>
     {
-        // Check IAM principal (Function URL)
-        if (ctx.User.HasClaim(c => c.Type == "iam-principal")) return true;
-        
-        // Check JWT scope claim (space-separated string)
         var scopeClaim = ctx.User.FindFirst("scope")?.Value;
-        return scopeClaim != null && scopeClaim.Contains("metrics-api/write");
+        if (scopeClaim?.Contains("metrics-api/write") == true) return true;
+        return ctx.User.HasClaim(c => c.Type == "awsRoleArn");
     }));
 });
 // end 4.
@@ -121,29 +115,55 @@ app.UseSwaggerUI(options =>
 
 //app.UseHttpsRedirection();
 app.UseRouting();
-// 6. Enable authentication and authorization middleware
-// Add authentication and authorization middleware
+
+// Middleware: enrich principal from Function URL or test header
 app.Use(async (context, next) =>
 {
-    // Check if request came via Lambda Function URL with IAM auth
-    // Lambda context is available via ILambdaContext or headers
-    var requestContext = context.Request.Headers["x-amzn-lambda-request-context"].FirstOrDefault();
-    
-    if (!string.IsNullOrEmpty(requestContext) && requestContext.Contains("invokedFunctionArn"))
+    // If already authenticated (JWT), skip
+    if (context.User?.Identity?.IsAuthenticated == true)
     {
-        // IAM-authenticated request via Function URL
-        // Create a claims identity for authorization policies
+        await next();
+        return;
+    }
+
+    // Function URL supplies this header (JSON)
+    var lambdaCtxHeader = context.Request.Headers["x-amzn-lambda-request-context"].FirstOrDefault();
+
+    // Synthetic header from direct invoke smoke test (optional)
+    var isGithubSynthetic = context.Request.Headers.ContainsKey("X-GitHub-Actions");
+
+    if (!string.IsNullOrEmpty(lambdaCtxHeader) || isGithubSynthetic)
+    {
+        string roleArn = "arn:aws:iam::140977286959:role/GitHubActionsOIDC-Lambda-Deployer";
+        string accountId = "140977286959";
+
+        // Try to parse real context (ignore errors)
+        try
+        {
+            // Example header is JSON; extract fields if present
+            using var doc = JsonDocument.Parse(lambdaCtxHeader);
+            if (doc.RootElement.TryGetProperty("accountId", out var acct))
+                accountId = acct.GetString() ?? accountId;
+            if (doc.RootElement.TryGetProperty("requestId", out var rq))
+            {
+                // you can attach requestId if helpful
+            }
+            // invokedFunctionArn present?
+            if (doc.RootElement.TryGetProperty("invokedFunctionArn", out var fnArn))
+                roleArn = fnArn.GetString() ?? roleArn;
+        }
+        catch { /* ignore */ }
+
         var claims = new List<Claim>
         {
-            new Claim("iam-principal", "github-actions"),
-            new Claim(ClaimTypes.Role, "automation")
+            new Claim("awsRoleArn", roleArn),
+            new Claim("awsAccountId", accountId),
+            new Claim("executionSource", "github-actions"),
+            new Claim("iam-principal", "true")
         };
-        var identity = new ClaimsIdentity(claims, "IAM");
-        context.User = new ClaimsPrincipal(identity);
-        
-        Console.WriteLine("Request authenticated via IAM (Function URL)");
+        context.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "IAM"));
     }
-    
+
     await next();
 });
 

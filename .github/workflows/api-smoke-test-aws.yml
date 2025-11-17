@@ -29,50 +29,23 @@ jobs:
       - name: Verify AWS identity
         run: aws sts get-caller-identity
 
+     # ...existing code...
       - name: Submit sample test result (write operation)
         id: submit
         run: |
-          # Create payload
-          cat > event.json <<EOF
-          {
-            "version": "2.0",
-            "routeKey": "POST /api/testresults/result",
-            "rawPath": "/api/testresults/result",
-            "requestContext": {
-              "http": {
-                "method": "POST",
-                "path": "/api/testresults/result"
-              },
-              "invokedFunctionArn": "arn:aws:lambda:${{ env.REGION }}:140977286959:function:${{ env.FUNCTION_NAME }}"
-            },
-            "headers": {
-              "content-type": "application/json"
-            },
-            "body": "{\"buildId\":\"build-${{ github.run_id }}\",\"testName\":\"smoke-test-${{ github.run_number }}\",\"outcome\":\"Passed\",\"durationSeconds\":1.5}"
-          }
-          EOF
-          
-          # Invoke Lambda directly
-          aws lambda invoke \
-            --function-name ${{ env.FUNCTION_NAME }} \
-            --payload file://event.json \
-            --cli-binary-format raw-in-base64-out \
-            response.json
-          
-          echo "Response:"
-          cat response.json | jq '.'
-          
-          # Parse Lambda response (contains statusCode in body)
-          status_code=$(cat response.json | jq -r '.statusCode // empty')
-          
-          if [ "$status_code" != "202" ]; then
-            echo "❌ Expected HTTP 202, got $status_code"
-            cat response.json
-            exit 1
-          fi
-          
-          echo "✅ Submit successful"
-
+              pip install awscurl
+              payload='{"buildId":"build-${{ github.run_id }}","testName":"smoke-test-${{ github.run_number }}","outcome":"Passed","durationSeconds":1.5}'
+              http_status=$(awscurl --service lambda --region ${{ env.REGION }} \
+                 -X POST "${FUNCTION_URL}api/testresults/result" \
+                 -H "Content-Type: application/json" \
+                 -d "$payload" -w "%{http_code}" -o response.json)
+              cat response.json
+              if [ "$http_status" != "202" ]; then
+                echo "❌ Expected 202 got $http_status"
+                exit 1
+              fi
+              echo "✅ Submit successful"
+      # ...summary step similar...
       - name: Fetch metrics summary (read operation)
         id: summary
         run: |

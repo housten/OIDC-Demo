@@ -7,7 +7,7 @@ set REGION=eu-north-1
 set ROLE_NAME=GitHubActionsOIDC-Lambda-Deployer
 set FUNCTION_NAME=metrics-api-lambda
 
-echo Creating updated policy with Function URL permissions...
+echo Creating updated policy with invoke permissions...
 >lambda-deploy-policy-updated.json (
   echo {
   echo   "Version": "2012-10-17",
@@ -17,7 +17,9 @@ echo Creating updated policy with Function URL permissions...
   echo       "Action": [
   echo         "lambda:UpdateFunctionCode",
   echo         "lambda:GetFunction",
+  echo         "lambda:GetFunctionConfiguration",
   echo         "lambda:UpdateFunctionConfiguration",
+  echo         "lambda:InvokeFunction",
   echo         "lambda:CreateFunctionUrlConfig",
   echo         "lambda:UpdateFunctionUrlConfig",
   echo         "lambda:GetFunctionUrlConfig",
@@ -38,5 +40,5 @@ aws iam put-role-policy ^
 
 echo ✅ Policy updated successfully!
 echo.
-echo Next: Create Function URL with IAM auth
+echo Re-run the smoke test workflow now
 endlocal
