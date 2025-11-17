@@ -8,11 +8,12 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using System.Text.Json;
+using Amazon.Lambda.AspNetCoreServer.Hosting; // <== important
 // end 1.
 
 
 var builder = WebApplication.CreateBuilder(args);
-
+builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
 // 2. Set up configuration for JWT authentication
 // Get AWS Cognito configuration 
 var region = builder.Configuration["AWS:Region"] ?? builder.Configuration["AWS__Region"];
@@ -131,6 +132,12 @@ app.UseSwaggerUI(options =>
 app.UseRouting();
 
 // 6. Enable authentication and authorization middleware
+app.Use(async (ctx, next) =>
+{
+    foreach (var h in ctx.Request.Headers)
+        Console.WriteLine($"HDR {h.Key}={h.Value}");
+    await next();
+});
 app.UseAuthentication(); 
 app.UseAuthorization();
 // end 6.
