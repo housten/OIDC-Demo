@@ -12,6 +12,8 @@ We are also writing instructions into a `demo-instructions.md` file so that othe
 
 ## What We Built
 ASP.NET Core 8 API deployed as AWS Lambda, secured with AWS Cognito OIDC (client_credentials flow).
+An API that has endpoints protected by JWT authentication and scope-based authorization.
+An M2M client that will have a github jwt token to call the API.(but this isn't quite working yet)
 
 ## Current State
 - ✅ API works locally and in AWS Lambda
@@ -25,11 +27,13 @@ ASP.NET Core 8 API deployed as AWS Lambda, secured with AWS Cognito OIDC (client
 - `c:\Workspaces\oidcDemo\MetricsApiAWS\MetricsApi.csproj` - Dependencies
 - `c:\Workspaces\oidcDemo\demo-instructions.md` - Setup guide
 - `C:\Workspaces\oidcDemo\.github\workflows\deploy-aws.yml` - GitHub Actions workflow (to remain unchanged)
+- `C:\Workspaces\oidcDemo\.github\workflows\deploy-lambda-aws.yml` - GitHub Actions workflow for Lambda deployment
+- `C:\Workspaces\oidcDemo\.github\workflows\api-smoke-test-aws.yml` - GitHub Actions workflow for AWS API testing
 
 ## AWS Resources
 - Region: `eu-north-1`
-- User Pool: `eu-north-1_8iRyPnvr7`
-- App Client: `7mah0vs17e0t52rug0fi8tbd2g`
+- User Pool: `eu-north-1_s8SnhuJGa`
+- App Client: `1k0br72a1hqkms8r2o61n8d3ki`
 - Lambda: `metrics-api-lambda`
 - API Gateway: `k6opu4nrel`
 
@@ -39,14 +43,17 @@ See `demo-instructions.md` for token generation and API testing.
 ## Next Steps to Complete
 Step 1: Deploy the API to AWS using a GitHub Workflow
 We'll make a new GitHub Actions workflow to:
-- Build and push the application to a Lambda function.
-- Do any necessary configuration for the API Gateway to be able to use the new Lambda function code.
-- Test each of the API endpoints to ensure they work as expected.
+- [x] Build and push the application to a Lambda function.
+- [?]Do any necessary configuration for the API Gateway to be able to use the new Lambda function code.
 
-Step 2: Test the Deployed API
-Once deployed, we'll:
-- Test the API endpoints using the Cognito tokens.
-- Ensure authentication and authorization work as expected.
+
+Step 2: Test the Deployed API using a GitHub Workflow
+We'll create another GitHub Actions workflow to:
+- [x] Test the API endpoints.
+- [ ] Ensure authentication and authorization work as expected.
 
 Step 3: Document the Process
-We'll finalize the `demo-instructions.md` file with all the steps needed.
+We'll finalize the `demo-instructions.md` file with all the steps relevant to setting up and applying OIDC in a simple application with AWS as the cloud provider. We will have one pipeline to show creating simple IAC actions, one for deploying the application to Lambda, and one for testing the deployed application.
+- [ ] Complete and polish the documentation for clarity and completeness.
+- [ ] Review the entire demo setup to ensure it is easy to follow for others.
+- [ ] Final review and testing of the entire demo process to ensure everything works smoothly.

@@ -187,7 +187,7 @@ CLIENT_SECRET=$(aws cognito-idp describe-user-pool-client \
   --query 'UserPoolClient.ClientSecret' --output text)
 echo "Client Secret: $CLIENT_SECRET"
 ```
-### 2.6 (Updated): Use Existing User Pool Domain
+### 2.6 : Use Existing User Pool Domain
 
 The user pool already has an auto-generated domain. Find it:
 
@@ -210,7 +210,7 @@ Token endpoint format:
 https://{domain}.auth.{region}.amazoncognito.com/oauth2/token
 ```
 
-### 2.7: Request Tokens (Updated with correct domain)
+### 2.7: Request Tokens 
 
 ```cmd
 set CLIENT_ID=7mah0vs17e0t52rug0fi8tbd2g
@@ -287,10 +287,16 @@ Add AWS Cognito configuration:
 ```
 ### 3.2: Update Program.cs
 
-Add JWT authentication and authorization configuration
+Add JWT authentication and authorization configuration snippets to `Program.cs`:
+fill in the code below where indicated.
+```csharp
+```
 ### 3.3: Update the Controller to Require Authorization
 
-Add authorization attributes to your endpoints:
+Add authorization attributes to your endpoints(insert example below):
+```csharp
+```
+
 ### 3.4: Test Locally
 
 1. Run the API:
@@ -302,6 +308,7 @@ dotnet run
 2. The API should start on `https://localhost:xxxx` (check console output)
 
 3. Test without token (should get 401 Unauthorized):
+Choose the correct port from your local run output.
 ```cmd
 curl -k https://localhost:7000/api/testresults
 ```
