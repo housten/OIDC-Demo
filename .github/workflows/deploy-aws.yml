@@ -8,7 +8,7 @@ on:
 
 permissions:
   id-token: write # CRITICAL: Required to request the OIDC JWT token
-  contents: read  # Required to check out the repository code
+  contents: read  
 
 jobs:
   deploy:
